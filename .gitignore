@@ -3,7 +3,5 @@ cache/
 
 *.parquet
 *.root
-*.png
-*.pdf
 
 .ipynb_checkpoints/
