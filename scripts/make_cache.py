@@ -69,26 +69,16 @@ neutral_photon_met_branches = [
     "MissingET/MissingET.momentum.z",
 ]
 
-make_cache(
-    jet_branches,
-    "cache/signal_jet.parquet",
-    "cache/background_jet.parquet",
-)
+energy_func = [
+        "Jet/Jet.particles_begin",
+        "Jet/Jet.particles_end",
+        "ReconstructedParticles/ReconstructedParticles.momentum.x",
+        "ReconstructedParticles/ReconstructedParticles.momentum.y",
+        "ReconstructedParticles/ReconstructedParticles.momentum.z",
+        "ReconstructedParticles/ReconstructedParticles.energy",
+]
 
-make_cache(
-    reco_branches,
-    "cache/signal_reco.parquet",
-    "cache/background_reco.parquet",
-)
+make_cache(energy_func,
+        "cache/signal_jetParticles.parquet",
+        "cache/background_jetParticles.parquet")
 
-make_cache(
-    track_branches,
-    "cache/signal_tracks.parquet",
-    "cache/background_tracks.parquet",
-)
-
-make_cache(
-    neutral_photon_met_branches,
-    "cache/signal_missingEnPhotoNeut.parquet",
-    "cache/background_missingEnPhotoNeut.parquet",
-)
