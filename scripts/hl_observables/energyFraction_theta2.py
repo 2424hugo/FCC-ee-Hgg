@@ -73,7 +73,7 @@ def find_theta2_ij_jet(px, py, pz, E):
                      -py[i] * py[j]
                     -pz[i] * pz[j]
             )
-            theta2.append(2 * dot / (E[i] * E[j]))
+            theta2.append(np.sqrt(2 * dot / (E[i] * E[j])))
     return ak.Array(theta2)
 
 def find_theta2_all_jet(data):
