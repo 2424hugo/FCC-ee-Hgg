@@ -63,12 +63,12 @@ def ecf3_all_jets(data, beta=1):
 
     return ak.Array(all_e3)
 
-sig_e3 = ecf3_all_jets(sig[:1000], beta=0.5)
-bkg_e3 = ecf3_all_jets(bkg[:1000], beta=0.5)
+sig_e3 = ecf3_all_jets(sig[:1000], beta=0.2)
+bkg_e3 = ecf3_all_jets(bkg[:1000], beta=0.2)
 
-ak.to_parquet(ak.Array({"e3_beta_0.5": sig_e3}),"cache/signal_e3_beta_05_1000.parquet", compression=None)
+ak.to_parquet(ak.Array({"e3_beta_0.2": sig_e3}),"cache/signal_e3_beta_02_1000.parquet", compression=None)
 
-ak.to_parquet(ak.Array({"e3_beta_0.5": bkg_e3}),"cache/bkg_e3_beta_05_1000.parquet", compression=None)
+ak.to_parquet(ak.Array({"e3_beta_0.2": bkg_e3}),"cache/bkg_e3_beta_02_1000.parquet", compression=None)
 
 sig_flat = ak.to_numpy(ak.flatten(sig_e3, axis=None))
 bkg_flat = ak.to_numpy(ak.flatten(bkg_e3, axis=None))
@@ -76,6 +76,6 @@ bkg_flat = ak.to_numpy(ak.flatten(bkg_e3, axis=None))
 plt.hist(sig_flat, bins=100, density=True, label="signal", alpha=0.5)
 plt.hist(bkg_flat, bins=100, density=True, label="background", alpha=0.5)
 plt.legend()
-plt.xlabel(r"$e_3^{(\beta=1)}$")
+plt.xlabel(r"$e_3^{(\beta=0.2)}$")
 plt.ylabel("Density")
-plt.savefig("outputs/plots/e3_beta_1_distribution.png")
+plt.savefig("outputs/plots/e3_beta_02_distribution.png")
