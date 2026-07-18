@@ -1,46 +1,62 @@
-# FCC-ee H → γγ Signal vs Background Analysis
+# FCC-ee H → gg Signal vs Background Analysis
 
 ## Overview
 
-This repository contains an analysis framework for studying Higgs boson decays to two photons at the FCC-ee.
+This repository contains an analysis framework for studying Higgs boson decays to two gluons (H → gg) at the FCC-ee.
 
-The project compares signal and background samples produced with Delphes and investigates kinematic and event-level observables that may be useful for signal discrimination and future machine learning classification.
+The aim of the project is to identify observables capable of discriminating gluon-initiated Higgs decays from the dominant quark-antiquark background, providing the foundation for future machine learning classification.
 
-Current work focuses on:
+The analysis is performed using Delphes simulated events and Awkward Arrays, with ROOT files cached into parquet format for efficient processing.
 
-* Loading Delphes ROOT files with `uproot`
-* Caching selected branches as parquet files
-* Comparing signal and background distributions
-* Feature engineering for future classification studies
+Current work includes:
+
+- ROOT → parquet caching
+- Event-level selection and optimisation
+- Jet-level analysis
+- Two-jet event reconstruction
+- Jet substructure observables
+- Energy Correlation Functions (ECFs)
+- Simple multivariate classification studies
+- ROC and AUC performance evaluation
 
 ---
 
-## Dataset
+# Dataset
 
 The analysis uses FCC-ee Delphes samples stored on CERN EOS.
 
-### Signal
+## Signal
 
-Higgs boson decay:
+```
+e⁺e⁻ → H → gg
+```
 
-H → γγ
+## Background
 
-### Background
+```
+e⁺e⁻ → q\bar{q}
+```
 
-Standard Model background samples from FCC-ee event generation.
-
-Only a subset of branches is currently cached for rapid analysis.
+Only the branches required for the analysis are cached locally.
 
 ---
 
-## Project Structure
+# Project Structure
 
 ```text
 FCC-ee-Hgg/
 ├── cache/
 ├── outputs/
 │   └── plots/
+│       ├── 2_jet_selection/
+│       ├── cut_data/
+│       ├── energy_func/
+│       └── ...
 ├── scripts/
+│   ├── cutting_data/
+│   ├── 2_jet_selection/
+│   ├── classifier/
+│   ├── hl_observables/
 │   ├── make_cache.py
 │   ├── plots_jet.py
 │   ├── plots_recon.py
@@ -48,44 +64,30 @@ FCC-ee-Hgg/
 │   └── plots_others.py
 ├── config.py
 ├── setup.sh
-├── .gitignore
 └── README.md
 ```
 
-### cache/
-
-Stores locally cached parquet files generated from ROOT samples.
-
-These files are not tracked by Git.
-
-### outputs/
-
-Stores generated plots and analysis outputs.
-
-### scripts/
-
-Contains data processing and plotting scripts.
-
 ---
 
-## Environment Setup
+# Environment Setup
 
-Load the CERN LCG environment:
+Load the CERN LCG environment
 
 ```bash
 source setup.sh
 ```
 
-The setup script loads:
+This loads
 
-* Python
-* ROOT
-* uproot
-* awkward
-* matplotlib
-* scientific Python libraries
+- Python
+- ROOT
+- uproot
+- awkward
+- NumPy
+- matplotlib
+- scikit-learn
 
-from:
+from
 
 ```bash
 /cvmfs/sft.cern.ch/lcg/views/LCG_108/x86_64-el9-gcc13-opt
@@ -93,106 +95,174 @@ from:
 
 ---
 
-## Generating Caches
+# Creating Local Caches
 
-Create local parquet caches from ROOT files:
+Convert the Delphes ROOT files into parquet caches
 
 ```bash
 python scripts/make_cache.py
 ```
 
-This converts selected ROOT branches into awkward-parquet datasets for faster analysis.
+The caches are stored in
+
+```
+cache/
+```
+
+and are ignored by Git.
 
 ---
 
-## Plotting
+# Analysis Workflow
 
-Generate jet distributions:
+## 1. Basic Object Distributions
+
+Generate standard jet and event distributions
 
 ```bash
 python scripts/plots_jet.py
-```
-
-Generate reconstructed particle distributions:
-
-```bash
 python scripts/plots_recon.py
-```
-
-Generate track distributions:
-
-```bash
 python scripts/plots_tracks.py
-```
-
-Generate missing-energy, photon and neutral-hadron distributions:
-
-```bash
 python scripts/plots_others.py
 ```
 
-Plots are written to:
+---
+
+## 2. Event Selection
+
+Apply and optimise event invariant mass cuts
+
+```bash
+python scripts/cutting_data/finding_cut.py
+python scripts/cutting_data/mass_cutts.py
+```
+
+---
+
+## 3. Two-Jet Selection
+
+Select the two highest-energy jets and study their discriminating power
+
+```bash
+python scripts/2_jet_selection/two_highest_energy.py
+python scripts/2_jet_selection/regression_2jet_masses.py
+```
+
+This includes
+
+- leading/subleading jet studies
+- ROC curves
+- logistic regression
+- decision trees
+- 2D jet-mass distributions
+
+---
+
+## 4. Energy Correlation Functions
+
+Implemented observables include
+
+- 2-point ECF
+- 3-point ECF
+- 1e3
+- C2
+- D2
+
+with multiple β values.
+
+Scripts are located in
+
+```text
+scripts/hl_observables/
+```
+
+---
+
+# Physics Observables
+
+## Event-Level
+
+- Invariant mass
+- Missing energy
+- Missing momentum
+
+---
+
+## Jet-Level
+
+- Energy
+- Mass
+- Momentum
+- Charge
+- Constituent multiplicity
+- Leading jet variables
+- Subleading jet variables
+
+---
+
+## Jet Substructure
+
+- Energy fractions
+- Pairwise angular distances
+- Two-point Energy Correlation Function
+- Three-point Energy Correlation Function
+- 1e3
+- C2
+- D2
+
+---
+
+# Classification Studies
+
+Current classification studies include
+
+- ROC curves
+- Area Under Curve (AUC)
+- Cut optimisation
+- Logistic Regression
+- Decision Trees
+
+These studies provide baseline performance before implementing more sophisticated machine learning methods.
+
+---
+
+# Outputs
+
+Generated plots are stored in
 
 ```text
 outputs/plots/
 ```
 
----
+including
 
-## Current Features
-
-### Jet Variables
-
-* Energy
-* Mass
-* Momentum components
-* Charge
-* Constituent multiplicity
-
-### Reconstructed Particles
-
-* Energy
-* Mass
-* Charge
-* Momentum components
-
-### Tracks
-
-* D0
-* Z0
-* φ
-* ω
-* tan λ
-
-### Missing Energy and Neutral Objects
-
-* Missing energy
-* Missing momentum components
-* Photon energy
-* Neutral hadron energy
+- cut optimisation
+- jet studies
+- energy correlation functions
+- ROC curves
+- classifier comparisons
 
 ---
 
-## Future Work
+# Future Work
 
-Planned developments include:
+Planned developments include
 
-* Additional high-level physics observables
-* Jet constituent studies
-* Quark/gluon discrimination variables
-* Event shape observables
-* Higgs candidate reconstruction
-* Machine learning classification
-* Feature importance studies
-* Signal significance optimisation
+- ParticleNet implementation
+- Transformer-based jet classification
+- Additional jet substructure observables
+- Event-level machine learning
+- Hyperparameter optimisation
+- Feature importance studies
+- Significance optimisation
+- Full Higgs event classification
 
 ---
 
-## Author
+# Author
 
-Hugo Leigh-Watts
+**Hugo Leigh-Watts**
 
 MSc Nuclear and Particle Physics
 
 University of Edinburgh
-
