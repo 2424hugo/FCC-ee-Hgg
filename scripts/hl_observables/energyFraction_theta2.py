@@ -107,8 +107,8 @@ def find_theta2_all_jet(data):
         all_theta2.append(particles_theta2)
     return ak.Array(all_theta2)
 
-sig_theta2 = find_theta2_all_jet(sig[:1000])
-bkg_theta2 = find_theta2_all_jet(bkg[:1000])
+sig_theta2 = find_theta2_all_jet(sig[:10000])
+bkg_theta2 = find_theta2_all_jet(bkg[:10000])
 
 plt.hist(
         ak.to_numpy(ak.flatten(sig_theta2, axis=None)),

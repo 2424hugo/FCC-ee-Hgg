@@ -21,8 +21,8 @@ def ecf2(z, theta2, beta=1):
 
         return ak.sum(zi * zj * theta2**beta, axis=-1)
 
-sig = ecf2(sig_z, sig_theta, beta = 0.2)
-bkg = ecf2(bkg_z, bkg_theta, beta = 0.2)
+sig = ecf2(sig_z, sig_theta, beta = 2)
+bkg = ecf2(bkg_z, bkg_theta, beta = 2)
 
 sig_flat = ak.to_numpy(ak.flatten(sig, axis=None))
 bkg_flat = ak.to_numpy(ak.flatten(bkg, axis=None))
@@ -30,10 +30,10 @@ bkg_flat = ak.to_numpy(ak.flatten(bkg, axis=None))
 plt.hist(sig_flat, density=True, label='signal', alpha=0.5, bins=100)
 plt.hist(bkg_flat, density=True, label='background', alpha=0.5, bins=100)
 plt.legend()
-plt.title("Two point energy function (beta = 0.2)")
+plt.title("Two point energy function (beta = 2)")
 plt.ylabel("Density")
 
-plt.savefig("outputs/plots/two_point_energy_distribution_beta02.png")
+plt.savefig("outputs/plots/energy_func/two_point_energy_distribution_beta2.png")
 
-ak.to_parquet(ak.Array({"e2_beta_0.2": sig}),"cache/signal_e2_beta_02_1000.parquet", compression=None)
-ak.to_parquet(ak.Array({"e2_beta_0.2": bkg}),"cache/bkg_e2_beta_02_1000.parquet", compression=None)
+ak.to_parquet(ak.Array({"e2_beta_2": sig}),"cache/signal_e2_beta_2_1000.parquet", compression=None)
+ak.to_parquet(ak.Array({"e2_beta_2": bkg}),"cache/bkg_e2_beta_2_1000.parquet", compression=None)

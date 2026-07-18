@@ -11,7 +11,7 @@ def theta_between(px1, py1, pz1, E1, px2, py2, pz2, E2):
     value = 2 * dot / (E1 * E2)
     return np.sqrt(np.maximum(0, value))
 
-def ecf3_jet(px, py, pz, E, beta=0.2):
+def one_e3_jet(px, py, pz, E, beta=0.2):
     z = E / ak.sum(E)
 
     triples = ak.combinations(
@@ -29,13 +29,13 @@ def ecf3_jet(px, py, pz, E, beta=0.2):
     theta_ac = theta_between(a.px, a.py, a.pz, a.E, c.px, c.py, c.pz, c.E)
     theta_bc = theta_between(b.px, b.py, b.pz, b.E, c.px, c.py, c.pz, c.E)
 
+    theta_min = np.minimum.reduce([theta_ab, theta_ac, theta_bc])
+
     return ak.sum(
             a.z * b.z * c.z *
-            theta_ab**beta *
-            theta_ac**beta *
-            theta_bc**beta)
+            theta_min**beta)
 
-def ecf3_all_jets(data, beta=1):
+def one_e3_all_jets(data, beta=1):
     begin = data["Jet/Jet.particles_begin"]
     end = data["Jet/Jet.particles_end"]
 
@@ -53,7 +53,7 @@ def ecf3_all_jets(data, beta=1):
             b = begin[event][jet]
             e = end[event][jet]
 
-            value = ecf3_jet(px[event][b:e],py[event][b:e],pz[event][b:e],E[event][b:e],beta=beta)
+            value = one_e3_jet(px[event][b:e],py[event][b:e],pz[event][b:e],E[event][b:e],beta=beta)
 
             event_e3.append(value)
 
@@ -61,19 +61,19 @@ def ecf3_all_jets(data, beta=1):
 
     return ak.Array(all_e3)
 
-sig_e3 = ecf3_all_jets(sig[:1000], beta=2)
-bkg_e3 = ecf3_all_jets(bkg[:1000], beta=2)
+sig_1e3 = one_e3_all_jets(sig[:1000], beta=0.2)
+bkg_1e3 = one_e3_all_jets(bkg[:1000], beta=0.2)
 
-ak.to_parquet(ak.Array({"e3_beta_2": sig_e3}),"cache/signal_e3_beta_2_1000.parquet", compression=None)
+ak.to_parquet(ak.Array({"1e3_beta_02": sig_1e3}),"cache/signal_1e3_beta_02_1000.parquet", compression=None)
 
-ak.to_parquet(ak.Array({"e3_beta_2": bkg_e3}),"cache/bkg_e3_beta_2_1000.parquet", compression=None)
+ak.to_parquet(ak.Array({"1e3_beta_02": bkg_1e3}),"cache/bkg_1e3_beta_02_1000.parquet", compression=None)
 
-sig_flat = ak.to_numpy(ak.flatten(sig_e3, axis=None))
-bkg_flat = ak.to_numpy(ak.flatten(bkg_e3, axis=None))
+sig_flat = ak.to_numpy(ak.flatten(sig_1e3, axis=None))
+bkg_flat = ak.to_numpy(ak.flatten(bkg_1e3, axis=None))
 
 plt.hist(sig_flat, bins=100, density=True, label="signal", alpha=0.5)
 plt.hist(bkg_flat, bins=100, density=True, label="background", alpha=0.5)
 plt.legend()
-plt.xlabel(r"$e_3^{(\beta=2)}$")
+plt.xlabel(r"${}_1 e_3^{(\beta=0.2)}$")
 plt.ylabel("Density")
-plt.savefig("outputs/plots/energy_func/e3_beta_2_distribution.png")
+plt.savefig("outputs/plots/energy_func/1e3_beta_02_distribution.png")
