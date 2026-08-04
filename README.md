@@ -1,268 +1,163 @@
-# FCC-ee H → gg Signal vs Background Analysis
+# FCC-ee `H → gg` versus `e⁺e⁻ → q\bar{q}`
 
-## Overview
+An event-level jet-substructure study of direct, resonant Higgs production at the FCC-ee. The analysis distinguishes the `H → gg` final state from continuum hadronic `e⁺e⁻ → q\bar{q}` events using simulated Delphes/IDEA samples, energy-correlation functions (ECFs), and a boosted decision tree (BDT).
 
-This repository contains an analysis framework for studying Higgs boson decays to two gluons (H → gg) at the FCC-ee.
+The wider motivation is sensitivity to the electron Yukawa coupling through `e⁺e⁻ → H` at `√s ≈ m_H`. This channel is experimentally difficult because the direct production rate is very small and hadronic backgrounds are much larger. A generator-level study identified `H → gg` as one of the more promising final states for this programme [d’Enterria, Poldaru & Wojcik (2022)](https://arxiv.org/abs/2107.02686).
 
-The aim of the project is to identify observables capable of discriminating gluon-initiated Higgs decays from the dominant quark-antiquark background, providing the foundation for future machine learning classification.
+## Analysis summary
 
-The analysis is performed using Delphes simulated events and Awkward Arrays, with ROOT files cached into parquet format for efficient processing.
+- **Signal:** `e⁺e⁻ → H → gg`
+- **Background:** `e⁺e⁻ → q\bar{q}`
+- **Detector simulation:** FCC-ee Winter 2023 Delphes events with the IDEA detector card
+- **Selection:** jet-based event invariant mass `m_event > 120 GeV`, followed by the two highest-energy jets in each retained event
+- **Classifier:** 22-variable `HistGradientBoostingClassifier`, trained with class-balanced weights
 
-Current work includes:
+The project is an analysis-development study. The BDT weights are deliberately balanced for classification and are **not** cross-section or luminosity weights; a final physics sensitivity calculation must apply the relevant rates, luminosity, selection efficiencies, and systematic uncertainties.
 
-- ROOT → parquet caching
-- Event-level selection and optimisation
-- Jet-level analysis
-- Two-jet event reconstruction
-- Jet substructure observables
-- Energy Correlation Functions (ECFs)
-- Simple multivariate classification studies
-- ROC and AUC performance evaluation
+## Current validated BDT result
 
----
+The committed reference run used 100,000 signal and 100,000 background events for both training and validation, with a held-out test split left untouched.
 
-# Dataset
+| Quantity | Validation result |
+| --- | ---: |
+| ROC AUC | 0.9358 |
+| Average precision | 0.9283 |
+| Youden threshold | 0.4910 |
+| Signal efficiency at this threshold | 0.8818 |
+| Background efficiency at this threshold | 0.1593 |
+| Background rejection | 0.8407 |
+| Balanced accuracy | 0.8612 |
 
-The analysis uses FCC-ee Delphes samples stored on CERN EOS.
+The corresponding model, metrics, ROC curve and permutation-importance plot are written to `outputs/ml/bdt_22_variables/`.
 
-## Signal
+The strongest variables in the reference permutation test were the leading and subleading `C₂(β=0.2)` observables, followed by leading-jet mass, constituent multiplicity and `D₂(β=0.2)`.
 
-```
-e⁺e⁻ → H → gg
-```
-
-## Background
-
-```
-e⁺e⁻ → q\bar{q}
-```
-
-Only the branches required for the analysis are cached locally.
-
----
-
-# Project Structure
+## Repository layout
 
 ```text
 FCC-ee-Hgg/
-├── cache/
-├── outputs/
-│   └── plots/
-│       ├── 2_jet_selection/
-│       ├── cut_data/
-│       ├── energy_func/
-│       └── ...
-├── scripts/
-│   ├── cutting_data/
-│   ├── 2_jet_selection/
-│   ├── classifier/
-│   ├── hl_observables/
-│   ├── make_cache.py
-│   ├── plots_jet.py
-│   ├── plots_recon.py
-│   ├── plots_tracks.py
-│   └── plots_others.py
-├── config.py
 ├── setup.sh
-└── README.md
+├── scripts/
+│   ├── data_processing/
+│   │   ├── add_hl_observables.py
+│   │   └── enrich_analysis_shards.py
+│   ├── data_checks/
+│   │   └── validate_enriched_shards.py
+│   └── ML/
+│       └── train_bdt_22_variables.py
+├── cache/                         # generated data; not version-controlled
+└── outputs/
+    ├── ml/bdt_22_variables/
+    └── plots/
 ```
 
----
+Older exploratory scripts for cache construction, cut studies, jet distributions and ECF scans are retained under `scripts/`.
 
-# Environment Setup
+## Environment
 
-Load the CERN LCG environment
+On CERN LXPLUS, initialise the project environment from the repository root:
 
 ```bash
 source setup.sh
 ```
 
-This loads
+This loads the CERN LCG 108 environment and sets `PYTHONPATH` to the repository root. The analysis relies on Python, `uproot`, `awkward`, NumPy, PyArrow, Matplotlib, scikit-learn and joblib.
 
-- Python
-- ROOT
-- uproot
-- awkward
-- NumPy
-- matplotlib
-- scikit-learn
+## Data pipeline
 
-from
+The input samples are EDM4hep/Delphes ROOT files on CERN EOS. The cache builder reads only the branches required for the analysis in batches, reconstructs the jet-based event four-vector, and stores selected events as Parquet shards.
 
-```bash
-/cvmfs/sft.cern.ch/lcg/views/LCG_108/x86_64-el9-gcc13-opt
-```
+Each retained event has:
 
----
+1. `m_event > 120 GeV`;
+2. at least two reconstructed jets;
+3. two jets ordered by energy (leading, then subleading);
+4. constituent four-vectors resolved through the `Jet#2` relation; and
+5. a fixed signal (`1`) or background (`0`) label.
 
-# Creating Local Caches
-
-Convert the Delphes ROOT files into parquet caches
-
-```bash
-python scripts/make_cache.py
-```
-
-The caches are stored in
-
-```
-cache/
-```
-
-and are ignored by Git.
-
----
-
-# Analysis Workflow
-
-## 1. Basic Object Distributions
-
-Generate standard jet and event distributions
-
-```bash
-python scripts/plots_jet.py
-python scripts/plots_recon.py
-python scripts/plots_tracks.py
-python scripts/plots_others.py
-```
-
----
-
-## 2. Event Selection
-
-Apply and optimise event invariant mass cuts
-
-```bash
-python scripts/cutting_data/finding_cut.py
-python scripts/cutting_data/mass_cutts.py
-```
-
----
-
-## 3. Two-Jet Selection
-
-Select the two highest-energy jets and study their discriminating power
-
-```bash
-python scripts/2_jet_selection/two_highest_energy.py
-python scripts/2_jet_selection/regression_2jet_masses.py
-```
-
-This includes
-
-- leading/subleading jet studies
-- ROC curves
-- logistic regression
-- decision trees
-- 2D jet-mass distributions
-
----
-
-## 4. Energy Correlation Functions
-
-Implemented observables include
-
-- 2-point ECF
-- 3-point ECF
-- 1e3
-- C2
-- D2
-
-with multiple β values.
-
-Scripts are located in
+The analysis dataset is organised as:
 
 ```text
-scripts/hl_observables/
+cache/analysis_dataset/
+├── signal/{train,validation,test}/*.parquet
+└── background/{train,validation,test}/*.parquet
 ```
 
----
+Parquet files are read in batches rather than loaded eagerly. This is necessary for the full cache, which exceeds typical interactive memory limits.
 
-# Physics Observables
+### Add high-level observables
 
-## Event-Level
+The enrichment stage calculates the selected observables in small event chunks and atomically replaces a shard only after it has been reloaded and validated:
 
-- Invariant mass
-- Missing energy
-- Missing momentum
-
----
-
-## Jet-Level
-
-- Energy
-- Mass
-- Momentum
-- Charge
-- Constituent multiplicity
-- Leading jet variables
-- Subleading jet variables
-
----
-
-## Jet Substructure
-
-- Energy fractions
-- Pairwise angular distances
-- Two-point Energy Correlation Function
-- Three-point Energy Correlation Function
-- 1e3
-- C2
-- D2
-
----
-
-# Classification Studies
-
-Current classification studies include
-
-- ROC curves
-- Area Under Curve (AUC)
-- Cut optimisation
-- Logistic Regression
-- Decision Trees
-
-These studies provide baseline performance before implementing more sophisticated machine learning methods.
-
----
-
-# Outputs
-
-Generated plots are stored in
-
-```text
-outputs/plots/
+```bash
+python -m scripts.data_processing.enrich_analysis_shards \
+  --all \
+  --dataset-root cache/analysis_dataset/signal/train \
+  --chunk-size 500
 ```
 
-including
+Repeat for each sample and split. To process one shard, use `--file path/to/shard.parquet` instead of `--all`.
 
-- cut optimisation
-- jet studies
-- energy correlation functions
-- ROC curves
-- classifier comparisons
+Validate all enriched shards and the train/validation/test source-file separation with:
 
----
+```bash
+python -m scripts.data_checks.validate_enriched_shards
+```
 
-# Future Work
+`C₂` and `D₂` are undefined for one-constituent jets because `e₂ = e₃ = 0`; these entries are stored as `NaN` and are handled by the BDT.
 
-Planned developments include
+## Observables
 
-- ParticleNet implementation
-- Transformer-based jet classification
-- Additional jet substructure observables
-- Event-level machine learning
-- Hyperparameter optimisation
-- Feature importance studies
-- Significance optimisation
-- Full Higgs event classification
+The BDT uses 22 scalar inputs: two event-level quantities plus ten values for each selected jet.
 
----
+| Category | Variables |
+| --- | --- |
+| Event | `event_invariant_mass`, `n_jets_original` |
+| Per selected jet | energy, mass, constituent multiplicity, `p_T`, `p`, polar angle `θ` |
+| Jet substructure | `e₂(β=0.2)`, `e₃(β=0.2)`, `C₂=e₃/e₂²`, `D₂=e₃/e₂³` |
 
-# Author
+For constituents with energy fractions `z_i`, the ECFs use the energy-normalised angular distance `θ_ij`:
 
-**Hugo Leigh-Watts**
+`e₂^(β) = Σ_{i<j} z_i z_j θ_ij^β`
 
-MSc Nuclear and Particle Physics
+`e₃^(β) = Σ_{i<j<k} z_i z_j z_k (θ_ij θ_ik θ_jk)^β`
 
-University of Edinburgh
+Earlier single-observable ECF3 scans gave AUCs of 0.8328 (`β=0.1`), 0.8255 (`0.2`), 0.7975 (`0.5`), 0.7587 (`1.0`) and 0.7124 (`2.0`). The current enriched dataset therefore uses `β=0.2`, which provides strong discrimination in combination with the other observables.
+
+## Train the BDT
+
+Run the reference configuration from the repository root:
+
+```bash
+python -m scripts.ML.train_bdt_22_variables \
+  --dataset-root cache/analysis_dataset \
+  --max-events-per-class 100000 \
+  --importance-events 20000
+```
+
+The script:
+
+- reads only training and validation shards, never the test split;
+- derives leading/subleading scalar columns from the two-jet arrays;
+- uses `HistGradientBoostingClassifier` with a maximum of 300 iterations, 31 leaves per tree, minimum leaf size 100, L2 regularisation of 1.0 and ROC-AUC early stopping;
+- applies class-balanced training weights; and
+- writes `bdt_model.joblib`, `metrics.json`, `validation_roc.png` and `permutation_importance.png`.
+
+Use `--max-events-per-class 0` only when sufficient memory and runtime are available to load all events in each split.
+
+## Reproducibility and data handling
+
+- Generated caches and large analysis outputs are excluded from Git.
+- Dataset splits are defined at the source-file level to prevent event leakage across train, validation and test samples.
+- The enrichment and validation steps explicitly check event counts, two-jet shapes, finite physical quantities and the expected `C₂`/`D₂` `NaN` pattern.
+- The supplied model result is a validation result, not a final unbiased performance estimate. Evaluate the reserved test split once model selection and threshold optimisation are finalised.
+
+## References
+
+1. D. d’Enterria, A. Poldaru and G. Wojcik, *Measuring the electron Yukawa coupling via resonant s-channel Higgs production at FCC-ee*, Eur. Phys. J. Plus **137**, 201 (2022), [arXiv:2107.02686](https://arxiv.org/abs/2107.02686).
+2. A. J. Larkoski, I. Moult and D. Neill, *Power Counting to Better Jet Observables*, JHEP **12** (2014) 009, [arXiv:1409.6298](https://arxiv.org/abs/1409.6298).  
+
+## Author
+
+Hugo Leigh-Watts  
+MSc Nuclear and Particle Physics, University of Edinburgh
