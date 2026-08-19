@@ -1,0 +1,50 @@
+{
+  "architecture": {
+    "hidden_dims": [
+      256,
+      128,
+      64
+    ],
+    "dropout": 0.15
+  },
+  "baseline": {
+    "n_features": 22,
+    "validation_auc": 0.925534895,
+    "validation_ap": 0.9173402688273609
+  },
+  "ranking_by_delta_auc": [
+    {
+      "rank": 1,
+      "feature": "leading_constituent_multiplicity",
+      "validation_auc_without": 0.9231577150000001,
+      "delta_auc": 0.0023771799999998677,
+      "eps_b_70_without": 0.0775,
+      "delta_eps_b_70": 0.0039000000000000007
+    },
+    {
+      "rank": 2,
+      "feature": "leading_e2_beta_0p2",
+      "validation_auc_without": 0.92543934,
+      "delta_auc": 9.55549999999139e-05,
+      "eps_b_70_without": 0.0722,
+      "delta_eps_b_70": -0.0013999999999999985
+    },
+    {
+      "rank": 3,
+      "feature": "leading_jet_mass",
+      "validation_auc_without": 0.925567345,
+      "delta_auc": -3.24500000000727e-05,
+      "eps_b_70_without": 0.0731,
+      "delta_eps_b_70": -0.0005000000000000004
+    },
+    {
+      "rank": 4,
+      "feature": "event_invariant_mass",
+      "validation_auc_without": 0.9259487449999999,
+      "delta_auc": -0.0004138499999999379,
+      "eps_b_70_without": 0.0723,
+      "delta_eps_b_70": -0.0012999999999999956
+    }
+  ],
+  "test_split_used": false
+}

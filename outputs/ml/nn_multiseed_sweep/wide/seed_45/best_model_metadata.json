@@ -1,0 +1,45 @@
+{
+  "selection_metric": "validation_roc_auc",
+  "architecture": "wide",
+  "hidden_layers": [
+    256,
+    128,
+    64
+  ],
+  "dropout": 0.15,
+  "parameters": 48001,
+  "best_epoch": 47,
+  "validation_auc": 0.9392642060999999,
+  "validation_ap": 0.9324898620639847,
+  "background_efficiencies": {
+    "eps_s_50": 0.02213,
+    "eps_s_70": 0.05716,
+    "eps_s_80": 0.09434,
+    "eps_s_90": 0.17146
+  },
+  "feature_names": [
+    "event_invariant_mass",
+    "n_jets_original",
+    "leading_jet_energy",
+    "subleading_jet_energy",
+    "leading_jet_mass",
+    "subleading_jet_mass",
+    "leading_constituent_multiplicity",
+    "subleading_constituent_multiplicity",
+    "leading_e2_beta_0p2",
+    "subleading_e2_beta_0p2",
+    "leading_e3_beta_0p2",
+    "subleading_e3_beta_0p2",
+    "leading_jet_pt",
+    "subleading_jet_pt",
+    "leading_jet_p",
+    "subleading_jet_p",
+    "leading_c2_beta_0p2",
+    "subleading_c2_beta_0p2",
+    "leading_d2_beta_0p2",
+    "subleading_d2_beta_0p2",
+    "leading_jet_theta",
+    "subleading_jet_theta"
+  ],
+  "test_split_used": false
+}

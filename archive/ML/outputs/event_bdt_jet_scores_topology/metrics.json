@@ -1,0 +1,141 @@
+{
+  "model": "two jet scores plus event topology HistGradientBoostingClassifier",
+  "features": [
+    "leading_jet_score",
+    "subleading_jet_score",
+    "event_invariant_mass",
+    "n_jets_original",
+    "leading_jet_energy",
+    "subleading_jet_energy",
+    "leading_jet_pt",
+    "subleading_jet_pt",
+    "leading_jet_p",
+    "subleading_jet_p",
+    "leading_jet_theta",
+    "subleading_jet_theta"
+  ],
+  "jet_features": [
+    "jet_mass",
+    "constituent_multiplicity",
+    "e2_beta_0p2",
+    "e3_beta_0p2",
+    "c2_beta_0p2",
+    "d2_beta_0p2"
+  ],
+  "training_score_mode": "crossfit",
+  "cross_fit_folds": 5,
+  "validation": {
+    "weighted_roc_auc": 0.9349668237664065,
+    "weighted_average_precision": 0.864234224153313,
+    "best_cut": {
+      "threshold": 0.9809461902492512,
+      "signal_yield": 11206.0,
+      "background_yield": 333.0,
+      "signal_efficiency": 0.06061294475275587,
+      "background_efficiency": 0.0008493922891504802,
+      "signal_over_background": 33.651651651651655,
+      "signal_over_sqrt_background": 614.0850172479446,
+      "asimov_significance": 123.24704403281297,
+      "background_neff": 333.0
+    },
+    "background_systematic_fraction": 0.05,
+    "weights_are_physical_expected_yields": false,
+    "template_edges": [
+      0.0,
+      0.0034354252172735795,
+      0.011010657266544181,
+      0.028520563464280158,
+      0.06735926669327874,
+      0.14787904131360854,
+      0.3000402298006548,
+      0.5912445199431651,
+      1.0
+    ]
+  },
+  "counts": {
+    "training_signal_events": 100000,
+    "training_background_events": 100000,
+    "validation_signal_events": 184878,
+    "validation_background_events": 392045
+  },
+  "training": {
+    "iterations_used": 300,
+    "class_totals_balanced": true,
+    "physical_background_composition_preserved": false
+  },
+  "data_quality": {
+    "signal_train": {
+      "missing": {},
+      "infinities_converted_to_nan": {}
+    },
+    "background_train": {
+      "missing": {
+        "c2_beta_0p2": 1050,
+        "d2_beta_0p2": 1050
+      },
+      "infinities_converted_to_nan": {}
+    },
+    "signal_validation": {
+      "missing": {},
+      "infinities_converted_to_nan": {}
+    },
+    "background_validation": {
+      "missing": {
+        "c2_beta_0p2": 4121,
+        "d2_beta_0p2": 4121
+      },
+      "infinities_converted_to_nan": {}
+    }
+  },
+  "permutation_importance": {
+    "leading_jet_score": {
+      "mean_auc_decrease": 0.2142075482086081,
+      "std": 0.006530852161329132
+    },
+    "subleading_jet_score": {
+      "mean_auc_decrease": 0.13858069636950077,
+      "std": 0.003348700229200952
+    },
+    "leading_jet_energy": {
+      "mean_auc_decrease": 0.002756825825040532,
+      "std": 5.443422715562886e-05
+    },
+    "leading_jet_theta": {
+      "mean_auc_decrease": 0.002556306461307023,
+      "std": 0.00021131458114659912
+    },
+    "event_invariant_mass": {
+      "mean_auc_decrease": 0.002544189503530547,
+      "std": 0.0002003400908579795
+    },
+    "subleading_jet_theta": {
+      "mean_auc_decrease": 0.0024719901449355985,
+      "std": 0.0001921301156823696
+    },
+    "subleading_jet_energy": {
+      "mean_auc_decrease": 0.0023069361668937916,
+      "std": 9.291208879490369e-05
+    },
+    "leading_jet_pt": {
+      "mean_auc_decrease": 0.0015033263136645437,
+      "std": 0.000166112276001139
+    },
+    "subleading_jet_p": {
+      "mean_auc_decrease": 0.0010256929055465047,
+      "std": 0.00016427504436767058
+    },
+    "subleading_jet_pt": {
+      "mean_auc_decrease": 0.0005076390513813145,
+      "std": 0.00012621164911592802
+    },
+    "leading_jet_p": {
+      "mean_auc_decrease": 0.00043684362655360687,
+      "std": 6.633800078382183e-05
+    },
+    "n_jets_original": {
+      "mean_auc_decrease": 0.0001284714097606221,
+      "std": 2.5214555926601587e-05
+    }
+  },
+  "interpretation": "unnormalised unit-weight sensitivity proxy"
+}

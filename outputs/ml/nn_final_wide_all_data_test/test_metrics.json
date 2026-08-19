@@ -1,0 +1,109 @@
+{
+  "checkpoint": "outputs/ml/nn_final_wide_all_data/final_model.pt",
+  "architecture": "wide_final_all_data",
+  "hidden_dims": [
+    256,
+    128,
+    64
+  ],
+  "test_auc": 0.9428368775890431,
+  "test_average_precision": 0.8801139116709169,
+  "test_mc_events": {
+    "signal": 185017,
+    "background": 391553
+  },
+  "physics": {
+    "signal_cross_section_fb": 0.023,
+    "background_cross_section_fb": 61000.0,
+    "luminosity_fb": 10000.0,
+    "signal_generated_events": 200000,
+    "background_generated_events": 1200000,
+    "signal_event_weight": 0.00115,
+    "background_event_weight": 508.3333333333333,
+    "signal_selection_efficiency": 0.925085,
+    "background_selection_efficiency": 0.32629416666666666,
+    "pre_nn_signal_yield": 212.76955,
+    "pre_nn_background_yield": 199039441.66666666
+  },
+  "minimum_background_mc": 20,
+  "best_operating_points": [
+    {
+      "background_systematic": 0.0,
+      "threshold": 0.94189453125,
+      "signal_mc_events": 68600,
+      "background_mc_events": 4292,
+      "signal_efficiency": 0.37077673943475464,
+      "background_efficiency": 0.01096147903348972,
+      "signal_yield": 78.89,
+      "background_yield": 2181766.6666666665,
+      "s_over_b": 3.6158770415412586e-05,
+      "s_over_sqrt_b": 0.05340941300999197,
+      "asimov_z": 0.05340909114506054
+    },
+    {
+      "background_systematic": 0.0001,
+      "threshold": 0.94189453125,
+      "signal_mc_events": 68600,
+      "background_mc_events": 4292,
+      "signal_efficiency": 0.37077673943475464,
+      "background_efficiency": 0.01096147903348972,
+      "signal_yield": 78.89,
+      "background_yield": 2181766.6666666665,
+      "s_over_b": 3.6158770415412586e-05,
+      "s_over_sqrt_b": 0.05340941300999197,
+      "asimov_z": 0.052835817038288484
+    },
+    {
+      "background_systematic": 0.001,
+      "threshold": 0.97509765625,
+      "signal_mc_events": 29942,
+      "background_mc_events": 970,
+      "signal_efficiency": 0.161833777436668,
+      "background_efficiency": 0.002477314693030062,
+      "signal_yield": 34.4333,
+      "background_yield": 493083.3333333333,
+      "s_over_b": 6.983261788068278e-05,
+      "s_over_sqrt_b": 0.04903638935801569,
+      "asimov_z": 0.040130054911922036
+    },
+    {
+      "background_systematic": 0.01,
+      "threshold": 0.9921875,
+      "signal_mc_events": 2788,
+      "background_mc_events": 36,
+      "signal_efficiency": 0.015068885561867288,
+      "background_efficiency": 9.194157623616727e-05,
+      "signal_yield": 3.2062,
+      "background_yield": 18300.0,
+      "s_over_b": 0.00017520218579234972,
+      "s_over_sqrt_b": 0.023700912389345515,
+      "asimov_z": 0.014088052663056712
+    },
+    {
+      "background_systematic": 0.05,
+      "threshold": 0.9921875,
+      "signal_mc_events": 2788,
+      "background_mc_events": 36,
+      "signal_efficiency": 0.015068885561867288,
+      "background_efficiency": 9.194157623616727e-05,
+      "signal_yield": 3.2062,
+      "background_yield": 18300.0,
+      "s_over_b": 0.00017520218579234972,
+      "s_over_sqrt_b": 0.023700912389345515,
+      "asimov_z": 0.003466164345318687
+    },
+    {
+      "background_systematic": 0.1,
+      "threshold": 0.9921875,
+      "signal_mc_events": 2788,
+      "background_mc_events": 36,
+      "signal_efficiency": 0.015068885561867288,
+      "background_efficiency": 9.194157623616727e-05,
+      "signal_yield": 3.2062,
+      "background_yield": 18300.0,
+      "s_over_b": 0.00017520218579234972,
+      "s_over_sqrt_b": 0.023700912389345515,
+      "asimov_z": 0.0017471529985538237
+    }
+  ]
+}

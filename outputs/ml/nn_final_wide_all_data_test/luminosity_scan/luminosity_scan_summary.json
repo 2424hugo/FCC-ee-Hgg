@@ -1,0 +1,153 @@
+{
+  "threshold_scan": "outputs/ml/nn_final_wide_all_data_test/threshold_scan.csv",
+  "reference_luminosity_ab": 10.0,
+  "luminosity_range_ab": [
+    1.0,
+    1000000.0
+  ],
+  "luminosity_points": 500,
+  "minimum_background_mc": 20,
+  "systematics": [
+    0.0,
+    0.0001,
+    0.001,
+    0.01,
+    0.05,
+    0.1
+  ],
+  "target_significances": [
+    1.0,
+    3.0,
+    5.0
+  ],
+  "luminosity_per_year_ab": 10.0,
+  "interaction_points": 1,
+  "targets": [
+    {
+      "background_systematic": 0.0,
+      "target_significance": 1.0,
+      "required_luminosity_ab": 3505.5537230913387,
+      "years_one_ip": 350.5553723091339,
+      "years_combined_ips": 350.5553723091339
+    },
+    {
+      "background_systematic": 0.0,
+      "target_significance": 3.0,
+      "required_luminosity_ab": 31550.084564553625,
+      "years_one_ip": 3155.0084564553626,
+      "years_combined_ips": 3155.0084564553626
+    },
+    {
+      "background_systematic": 0.0,
+      "target_significance": 5.0,
+      "required_luminosity_ab": 87640.39376776242,
+      "years_one_ip": 8764.039376776242,
+      "years_combined_ips": 8764.039376776242
+    },
+    {
+      "background_systematic": 0.0001,
+      "target_significance": 1.0,
+      "required_luminosity_ab": 22406.094276144777,
+      "years_one_ip": 2240.6094276144777,
+      "years_combined_ips": 2240.6094276144777
+    },
+    {
+      "background_systematic": 0.0001,
+      "target_significance": 3.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.0001,
+      "target_significance": 5.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.001,
+      "target_significance": 1.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.001,
+      "target_significance": 3.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.001,
+      "target_significance": 5.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.01,
+      "target_significance": 1.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.01,
+      "target_significance": 3.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.01,
+      "target_significance": 5.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.05,
+      "target_significance": 1.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.05,
+      "target_significance": 3.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.05,
+      "target_significance": 5.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.1,
+      "target_significance": 1.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.1,
+      "target_significance": 3.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    },
+    {
+      "background_systematic": 0.1,
+      "target_significance": 5.0,
+      "required_luminosity_ab": NaN,
+      "years_one_ip": NaN,
+      "years_combined_ips": NaN
+    }
+  ]
+}

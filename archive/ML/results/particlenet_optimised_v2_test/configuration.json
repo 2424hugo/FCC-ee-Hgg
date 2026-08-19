@@ -1,0 +1,85 @@
+{
+  "arguments": {
+    "parquet": null,
+    "train_parquet": [
+      "cache/analysis_dataset/*/train/*.parquet"
+    ],
+    "val_parquet": [
+      "cache/analysis_dataset/*/validation/*.parquet"
+    ],
+    "test_parquet": [
+      "cache/analysis_dataset/*/test/*.parquet"
+    ],
+    "output_dir": "results/particlenet_optimised_v2_test",
+    "epochs": 1,
+    "batch_size": 8,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "patience": 7,
+    "seed": 12345,
+    "num_workers": 2,
+    "max_constituents": 30,
+    "shard_cache_size": 2,
+    "prefetch_factor": 2,
+    "pin_memory": null,
+    "persistent_workers": true,
+    "amp": null,
+    "test_fraction": 0.15,
+    "val_fraction": 0.15,
+    "use_particle_type": true,
+    "particle_types": null,
+    "device": "cuda",
+    "limit_events": 200
+  },
+  "device": "cuda",
+  "amp_enabled": true,
+  "pin_memory": true,
+  "high_level_names": [
+    "event_invariant_mass",
+    "n_jets_original",
+    "jet_energy_sum",
+    "jet_energy_absdiff",
+    "jet_mass_sum",
+    "jet_mass_absdiff",
+    "jet_theta_sum",
+    "jet_theta_absdiff",
+    "e2_beta_0p2_sum",
+    "e2_beta_0p2_absdiff",
+    "e3_beta_0p2_sum",
+    "e3_beta_0p2_absdiff"
+  ],
+  "high_level_mean": [
+    124.12026977539062,
+    2.2899999618530273,
+    118.77379608154297,
+    5.183650493621826,
+    44.116092681884766,
+    10.191293716430664,
+    3.1365725994110107,
+    1.1610283851623535,
+    0.6829975247383118,
+    0.05362885817885399,
+    0.12245888262987137,
+    0.02253234200179577
+  ],
+  "high_level_std": [
+    1.6626485586166382,
+    0.45490074157714844,
+    11.077119827270508,
+    5.051186561584473,
+    14.286443710327148,
+    8.725669860839844,
+    0.21436217427253723,
+    0.7337366938591003,
+    0.11243897676467896,
+    0.04959654062986374,
+    0.04572407528758049,
+    0.017862282693386078
+  ],
+  "particle_type_vocabulary": [
+    0,
+    22,
+    130
+  ],
+  "trainable_parameters": 532859
+}

@@ -1,0 +1,1028 @@
+#!/usr/bin/env python3
+"""Train a structured event NN on every field in the analysis Parquet schema.
+
+The 22 *named fields* are not 22 scalar inputs.  Event fields are scalar, jet
+fields contain the two selected jets, and constituent fields are variable-length
+lists for each jet.  This network therefore uses a Deep-Sets-style constituent
+encoder with masked mean/max pooling, a per-jet encoder, and an event encoder.
+
+The test split is never read.  Training uses class-balanced weights; validation
+metrics and threshold optimisation use physical catalogue weights.
+"""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import json
+import math
+import random
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Iterator
+
+import numpy as np
+import pandas as pd
+from sklearn.metrics import average_precision_score, roc_auc_score
+
+try:
+    import awkward as ak
+except ImportError as exc:
+    raise RuntimeError(
+        "awkward is required for vectorised Arrow batch packing"
+    ) from exc
+
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+except ImportError as exc:
+    raise RuntimeError("pyarrow is required to stream the Parquet dataset") from exc
+
+try:
+    import torch
+    from torch import nn
+except ImportError as exc:
+    raise RuntimeError(
+        "PyTorch is required for the structured all-variable NN. "
+        "Activate the same environment used for ParticleNet, or install torch."
+    ) from exc
+
+try:
+    from tqdm.auto import tqdm
+except ImportError:
+    class tqdm:  # type: ignore[no-redef]
+        """Small tqdm-compatible fallback requiring only the standard library."""
+
+        def __init__(
+            self,
+            iterable: Iterator[Any],
+            total: int,
+            desc: str,
+            unit: str,
+            dynamic_ncols: bool,
+            disable: bool,
+        ) -> None:
+            del dynamic_ncols
+            self.iterator = iter(iterable)
+            self.total = total
+            self.desc = desc
+            self.unit = unit
+            self.disable = disable
+            self.count = 0
+            self.started = time.perf_counter()
+            self.postfix = ""
+
+        def __iter__(self) -> "tqdm":
+            return self
+
+        def __next__(self) -> Any:
+            if self.count:
+                self._render()
+            try:
+                item = next(self.iterator)
+            except StopIteration:
+                if not self.disable:
+                    sys.stderr.write("\n")
+                raise
+            self.count += 1
+            return item
+
+        def set_postfix(self, *, loss: str, refresh: bool = False) -> None:
+            del refresh
+            self.postfix = f"loss={loss}"
+
+        def _render(self) -> None:
+            if self.disable:
+                return
+            elapsed = time.perf_counter() - self.started
+            rate = self.count / elapsed if elapsed > 0.0 else 0.0
+            remaining = (self.total - self.count) / rate if rate > 0.0 else 0.0
+            fraction = min(self.count / max(self.total, 1), 1.0)
+            width = 30
+            filled = round(width * fraction)
+            bar = "#" * filled + "-" * (width - filled)
+            sys.stderr.write(
+                f"\r{self.desc}: {fraction:6.1%} |{bar}| "
+                f"{self.count}/{self.total} {self.unit} "
+                f"[elapsed {elapsed / 60:.1f}m, ETA {remaining / 60:.1f}m] "
+                f"{self.postfix}"
+            )
+            sys.stderr.flush()
+
+try:
+    import train_event_bdt_22_variables as common
+except ImportError as exc:
+    raise RuntimeError(
+        "Place this file beside train_event_bdt_22_variables.py in scripts/ML/."
+    ) from exc
+
+
+EVENT_FIELDS = ["event_invariant_mass", "n_jets_original"]
+JET_FIELDS = [
+    "jet_energy",
+    "jet_px",
+    "jet_py",
+    "jet_pz",
+    "jet_mass",
+    "constituent_multiplicity",
+    "e2_beta_0p2",
+    "e3_beta_0p2",
+    "jet_pt",
+    "jet_p",
+    "c2_beta_0p2",
+    "d2_beta_0p2",
+    "jet_theta",
+]
+CONSTITUENT_CONTINUOUS_FIELDS = [
+    "constituent_energy",
+    "constituent_px",
+    "constituent_py",
+    "constituent_pz",
+    "constituent_mass",
+    "constituent_charge",
+]
+CONSTITUENT_TYPE_FIELD = "constituent_type"
+CONSTITUENT_FIELDS = CONSTITUENT_CONTINUOUS_FIELDS + [CONSTITUENT_TYPE_FIELD]
+ALL_FIELDS = EVENT_FIELDS + JET_FIELDS + CONSTITUENT_FIELDS
+
+
+@dataclass(frozen=True)
+class SampleInfo:
+    name: str
+    label: int
+    files: tuple[Path, ...]
+    event_weight: float
+    rows: int
+    train_weight: float
+
+
+class RunningMoments:
+    """Per-feature streaming mean and variance."""
+
+    def __init__(self, width: int) -> None:
+        self.count = np.zeros(width, dtype=np.float64)
+        self.total = np.zeros(width, dtype=np.float64)
+        self.total2 = np.zeros(width, dtype=np.float64)
+
+    def update(self, values: np.ndarray, mask: np.ndarray | None = None) -> None:
+        flat = np.asarray(values, dtype=np.float64).reshape(-1, values.shape[-1])
+        valid = np.isfinite(flat)
+        if mask is not None:
+            valid &= np.asarray(mask, dtype=bool).reshape(-1, 1)
+        clean = np.where(valid, flat, 0.0)
+        self.count += valid.sum(axis=0)
+        self.total += clean.sum(axis=0)
+        self.total2 += np.square(clean).sum(axis=0)
+
+    def finish(self) -> tuple[np.ndarray, np.ndarray]:
+        denominator = np.maximum(self.count, 1.0)
+        mean = self.total / denominator
+        variance = np.maximum(self.total2 / denominator - np.square(mean), 1.0e-8)
+        std = np.sqrt(variance)
+        mean[self.count == 0] = 0.0
+        std[self.count < 2] = 1.0
+        return mean.astype(np.float32), std.astype(np.float32)
+
+
+class StructuredNormalizer:
+    def __init__(
+        self,
+        event_mean: np.ndarray,
+        event_std: np.ndarray,
+        jet_mean: np.ndarray,
+        jet_std: np.ndarray,
+        constituent_mean: np.ndarray,
+        constituent_std: np.ndarray,
+    ) -> None:
+        self.event_mean, self.event_std = event_mean, event_std
+        self.jet_mean, self.jet_std = jet_mean, jet_std
+        self.constituent_mean, self.constituent_std = constituent_mean, constituent_std
+
+    def apply(self, batch: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        result = dict(batch)
+        event = transform_event(batch["event"])
+        jets = transform_jets(batch["jets"])
+        constituents = transform_constituents(batch["constituents"])
+        result["event"] = finite_zero((event - self.event_mean) / self.event_std)
+        result["jets"] = finite_zero((jets - self.jet_mean) / self.jet_std)
+        result["constituents"] = finite_zero(
+            (constituents - self.constituent_mean) / self.constituent_std
+        )
+        result["constituents"] *= batch["mask"][..., None]
+        return result
+
+    def state(self) -> dict[str, list[float]]:
+        return {
+            "event_mean": self.event_mean.tolist(),
+            "event_std": self.event_std.tolist(),
+            "jet_mean": self.jet_mean.tolist(),
+            "jet_std": self.jet_std.tolist(),
+            "constituent_mean": self.constituent_mean.tolist(),
+            "constituent_std": self.constituent_std.tolist(),
+        }
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description=__doc__,
+    )
+    parser.add_argument("--dataset-root", type=Path, required=True)
+    parser.add_argument("--normalization-manifest", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--max-training-events-per-class", type=int, default=0)
+    parser.add_argument("--max-validation-events-per-class", type=int, default=0)
+    parser.add_argument("--normalization-events", type=int, default=200_000)
+    parser.add_argument(
+        "--max-constituents",
+        type=int,
+        default=0,
+        help=(
+            "Maximum constituents retained per jet, ordered by energy; "
+            "zero keeps every constituent and pads only to the batch maximum."
+        ),
+    )
+    parser.add_argument("--read-batch-size", type=int, default=4096)
+    parser.add_argument("--batch-size", type=int, default=2048)
+    parser.add_argument("--epochs", type=int, default=40)
+    parser.add_argument(
+        "--no-progress-bar",
+        action="store_false",
+        dest="progress_bar",
+        help="Disable the per-epoch training progress bar.",
+    )
+    parser.add_argument("--patience", type=int, default=6)
+    parser.add_argument("--learning-rate", type=float, default=1.0e-3)
+    parser.add_argument("--weight-decay", type=float, default=1.0e-4)
+    parser.add_argument("--dropout", type=float, default=0.10)
+    parser.add_argument("--type-buckets", type=int, default=512)
+    parser.add_argument("--type-embedding-dim", type=int, default=16)
+    parser.add_argument("--validation-events-per-epoch", type=int, default=200_000)
+    parser.add_argument("--background-systematics", type=float, nargs="+", default=[0.0, 0.0001, 0.01, 0.05, 0.10])
+    parser.add_argument("--optimize-background-systematic", type=float, default=0.0001)
+    parser.add_argument("--min-background-neff", type=float, default=100.0)
+    parser.add_argument("--thresholds", type=int, default=2001)
+    parser.add_argument("--random-state", type=int, default=42)
+    parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+        help="Training device; auto selects CUDA when available.",
+    )
+    return parser.parse_args()
+
+
+def finite_zero(values: np.ndarray) -> np.ndarray:
+    return np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0).astype(
+        np.float32, copy=False
+    )
+
+
+def signed_log1p(values: np.ndarray) -> np.ndarray:
+    return np.sign(values) * np.log1p(np.abs(values))
+
+
+def positive_log1p(values: np.ndarray) -> np.ndarray:
+    return np.log1p(np.maximum(values, 0.0))
+
+
+def transform_event(values: np.ndarray) -> np.ndarray:
+    result = np.asarray(values, dtype=np.float32).copy()
+    result[..., 0] = positive_log1p(result[..., 0])
+    result[..., 1] = positive_log1p(result[..., 1])
+    return finite_zero(result)
+
+
+def transform_jets(values: np.ndarray) -> np.ndarray:
+    result = np.asarray(values, dtype=np.float32).copy()
+    # E, mass, multiplicity, ECFs, pT, p, C2 and D2 are non-negative.
+    positive = (0, 4, 5, 6, 7, 8, 9, 10, 11)
+    signed = (1, 2, 3)
+    result[..., list(positive)] = positive_log1p(result[..., list(positive)])
+    result[..., list(signed)] = signed_log1p(result[..., list(signed)])
+    # theta is left in radians.
+    return finite_zero(result)
+
+
+def transform_constituents(values: np.ndarray) -> np.ndarray:
+    result = np.asarray(values, dtype=np.float32).copy()
+    result[..., [0, 4]] = positive_log1p(result[..., [0, 4]])
+    result[..., [1, 2, 3]] = signed_log1p(result[..., [1, 2, 3]])
+    result[..., 5] = np.clip(result[..., 5], -3.0, 3.0)
+    return finite_zero(result)
+
+
+def regular_numpy(
+    values: ak.Array, width: int, axis: int, dtype: np.dtype[Any]
+) -> np.ndarray:
+    """Pad/clip one jagged axis and return a finite, regular NumPy array."""
+    padded = ak.pad_none(values, width, axis=axis, clip=True)
+    return np.nan_to_num(
+        ak.to_numpy(ak.fill_none(padded, 0)), nan=0.0, posinf=0.0, neginf=0.0
+    ).astype(dtype, copy=False)
+
+
+def pack_record_batch(
+    record_batch: pa.RecordBatch,
+    max_constituents: int,
+    type_buckets: int,
+) -> dict[str, np.ndarray]:
+    """Pack an Arrow batch without materialising or iterating over Python lists."""
+    records = ak.from_arrow(record_batch.select(ALL_FIELDS))
+    n = record_batch.num_rows
+
+    event = np.column_stack(
+        [regular_numpy(records[name], n, 0, np.dtype(np.float32)) for name in EVENT_FIELDS]
+    )
+    jets = np.stack(
+        [regular_numpy(records[name], 2, 1, np.dtype(np.float32)) for name in JET_FIELDS],
+        axis=-1,
+    )
+
+    # Missing jets become empty constituent lists before sorting.  Sorting is
+    # stable, matching Python's previous stable descending-energy ordering.
+    energies = ak.pad_none(records["constituent_energy"], 2, axis=1, clip=True)
+    energies = ak.fill_none(energies, [], axis=1)
+    sortable_energy = ak.nan_to_num(
+        ak.fill_none(energies, 0.0), nan=0.0, posinf=0.0, neginf=0.0
+    )
+    order = ak.argsort(sortable_energy, axis=2, ascending=False, stable=True)
+
+    padded_constituents = max_constituents
+    if padded_constituents == 0:
+        maximum = ak.max(ak.num(energies, axis=2), initial=0)
+        padded_constituents = int(maximum)
+    # A length-one empty pad keeps tensor dimensions valid for empty jets/batches.
+    padded_constituents = max(padded_constituents, 1)
+    order = order[:, :, :padded_constituents]
+
+    selected_fields = []
+    for name in CONSTITUENT_CONTINUOUS_FIELDS:
+        values = ak.pad_none(records[name], 2, axis=1, clip=True)
+        values = ak.fill_none(values, [], axis=1)
+        selected_fields.append(
+            regular_numpy(values[order], padded_constituents, 2, np.dtype(np.float32))
+        )
+    constituents = np.stack(selected_fields, axis=-1)
+
+    raw_types = ak.pad_none(records[CONSTITUENT_TYPE_FIELD], 2, axis=1, clip=True)
+    raw_types = ak.fill_none(raw_types, [], axis=1)
+    raw_types_np = regular_numpy(
+        raw_types[order], padded_constituents, 2, np.dtype(np.int64)
+    )
+    # Zero is reserved for padding. Signed integer identity is retained in the hash.
+    raw_types_u64 = raw_types_np.astype(np.uint64, copy=False)
+    mixed = (raw_types_u64 * np.uint64(2654435761)) & np.uint64(0xFFFFFFFF)
+    types = (1 + mixed % np.uint64(type_buckets - 1)).astype(np.int64)
+    mask = regular_numpy(
+        ak.ones_like(energies, dtype=np.bool_)[order],
+        padded_constituents,
+        2,
+        np.dtype(bool),
+    )
+    types[~mask] = 0
+
+    return {
+        "event": event,
+        "jets": jets,
+        "constituents": constituents,
+        "types": types,
+        "mask": mask,
+    }
+
+
+def validate_schema(files: tuple[Path, ...]) -> None:
+    schema = pq.ParquetFile(files[0]).schema_arrow
+    missing = [name for name in ALL_FIELDS if name not in schema.names]
+    if missing:
+        raise RuntimeError(
+            f"The dataset is missing {len(missing)} required field(s): {missing}. "
+            f"Available fields include: {schema.names[:80]}"
+        )
+
+
+def build_samples(
+    root: Path, manifest: dict[str, Any], split: str
+) -> list[SampleInfo]:
+    luminosity = float(manifest["luminosity_ab_inv"])
+    preliminary: list[tuple[dict[str, Any], int, tuple[Path, ...], float, int]] = []
+    class_yields = {0: 0.0, 1: 0.0}
+    total_rows = 0
+    for sample in manifest["samples"]:
+        sample_class = str(sample["class"]).lower()
+        if sample_class not in {"signal", "background"}:
+            raise ValueError(f"Unknown class {sample_class!r} for {sample.get('name')}")
+        label = int(sample_class == "signal")
+        files = tuple(
+            common.sample_files(root, str(sample["path_glob"]), split)
+        )
+        validate_schema(files)
+        rows = sum(pq.ParquetFile(path).metadata.num_rows for path in files)
+        event_weight = common.event_weight(sample, luminosity, split)
+        preliminary.append((sample, label, files, event_weight, rows))
+        class_yields[label] += rows * event_weight
+        total_rows += rows
+        print(
+            f"{split:10s} {sample['name']:24s} rows={rows:10,d} "
+            f"weight={event_weight:.8g} yield={rows * event_weight:.8g}"
+        )
+
+    samples = []
+    for sample, label, files, event_weight, rows in preliminary:
+        # Sum of these weights over each class is total_rows/2.
+        train_weight = event_weight / class_yields[label] * total_rows / 2.0
+        samples.append(
+            SampleInfo(
+                str(sample["name"]), label, files, event_weight, rows, train_weight
+            )
+        )
+    return samples
+
+
+def iter_batches(
+    samples: list[SampleInfo],
+    args: argparse.Namespace,
+    split: str,
+    epoch: int = 0,
+    cap_per_class: int = 0,
+) -> Iterator[tuple[dict[str, np.ndarray], np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+    tasks = [(sample, path) for sample in samples for path in sample.files]
+    if split == "train":
+        random.Random(args.random_state + epoch).shuffle(tasks)
+    active_labels = {sample.label for sample in samples}
+    used = {label: 0 for label in active_labels}
+    for sample, path in tasks:
+        parquet = pq.ParquetFile(path)
+        for raw in parquet.iter_batches(
+            batch_size=args.read_batch_size, columns=ALL_FIELDS, use_threads=True
+        ):
+            remaining = cap_per_class - used[sample.label] if cap_per_class > 0 else raw.num_rows
+            if remaining <= 0:
+                continue
+            if raw.num_rows > remaining:
+                raw = raw.slice(0, remaining)
+            packed = pack_record_batch(raw, args.max_constituents, args.type_buckets)
+            n = raw.num_rows
+            used[sample.label] += n
+            yield (
+                packed,
+                np.full(n, sample.label, dtype=np.float32),
+                np.full(n, sample.event_weight, dtype=np.float64),
+                np.full(n, sample.train_weight, dtype=np.float32),
+                np.full(n, sample.name, dtype=object),
+            )
+        if cap_per_class > 0 and all(
+            used[label] >= cap_per_class for label in active_labels
+        ):
+            break
+
+
+def slice_batch(batch: dict[str, np.ndarray], start: int, end: int) -> dict[str, np.ndarray]:
+    return {name: values[start:end] for name, values in batch.items()}
+
+
+def concatenate_packed(parts: list[dict[str, np.ndarray]]) -> dict[str, np.ndarray]:
+    """Concatenate packed events, padding only the constituent dimension."""
+    if not parts:
+        raise ValueError("Cannot concatenate an empty packed-batch list")
+    width = max(part["constituents"].shape[2] for part in parts)
+    padded = []
+    for part in parts:
+        current = part["constituents"].shape[2]
+        if current == width:
+            padded.append(part)
+            continue
+        amount = width - current
+        copy_part = dict(part)
+        copy_part["constituents"] = np.pad(
+            part["constituents"], ((0, 0), (0, 0), (0, amount), (0, 0))
+        )
+        copy_part["types"] = np.pad(
+            part["types"], ((0, 0), (0, 0), (0, amount))
+        )
+        copy_part["mask"] = np.pad(
+            part["mask"], ((0, 0), (0, 0), (0, amount))
+        )
+        padded.append(copy_part)
+    return {
+        name: np.concatenate([part[name] for part in padded], axis=0)
+        for name in parts[0]
+    }
+
+
+class BatchAccumulator:
+    """Take exact-size event groups from a streaming class-specific iterator."""
+
+    def __init__(self, iterator: Iterator[tuple[Any, ...]]) -> None:
+        self.iterator = iterator
+        self.pending: tuple[Any, ...] | None = None
+        self.offset = 0
+
+    def take(
+        self, requested: int
+    ) -> tuple[dict[str, np.ndarray], np.ndarray, np.ndarray] | None:
+        packed_parts: list[dict[str, np.ndarray]] = []
+        label_parts: list[np.ndarray] = []
+        weight_parts: list[np.ndarray] = []
+        remaining = requested
+        while remaining > 0:
+            if self.pending is None:
+                try:
+                    self.pending = next(self.iterator)
+                    self.offset = 0
+                except StopIteration:
+                    break
+            packed, labels, _, train_weights, _ = self.pending
+            available = len(labels) - self.offset
+            count = min(remaining, available)
+            end = self.offset + count
+            packed_parts.append(slice_batch(packed, self.offset, end))
+            label_parts.append(labels[self.offset:end])
+            weight_parts.append(train_weights[self.offset:end])
+            self.offset = end
+            remaining -= count
+            if self.offset == len(labels):
+                self.pending = None
+        if not label_parts:
+            return None
+        return (
+            concatenate_packed(packed_parts),
+            np.concatenate(label_parts),
+            np.concatenate(weight_parts),
+        )
+
+
+def iter_balanced_train_batches(
+    samples: list[SampleInfo], args: argparse.Namespace, epoch: int
+) -> Iterator[tuple[dict[str, np.ndarray], np.ndarray, np.ndarray]]:
+    """Yield shuffled mini-batches with equal signal/background event counts."""
+    if args.batch_size < 2:
+        raise ValueError("--batch-size must be at least 2 for balanced training")
+    per_class = args.batch_size // 2
+    streams = {}
+    for label in (0, 1):
+        class_samples = [sample for sample in samples if sample.label == label]
+        if not class_samples:
+            raise RuntimeError(f"Training samples contain no events with label {label}")
+        streams[label] = BatchAccumulator(
+            iter_batches(
+                class_samples,
+                args,
+                "train",
+                epoch=epoch,
+                cap_per_class=args.max_training_events_per_class,
+            )
+        )
+
+    rng = np.random.default_rng(args.random_state + epoch)
+    while True:
+        background = streams[0].take(per_class)
+        signal = streams[1].take(per_class)
+        # Never train on a final single-class batch.
+        if background is None or signal is None:
+            break
+        count = min(len(background[1]), len(signal[1]))
+        if count == 0:
+            break
+        parts = []
+        for packed, labels, weights in (background, signal):
+            parts.append((slice_batch(packed, 0, count), labels[:count], weights[:count]))
+        packed = concatenate_packed([part[0] for part in parts])
+        labels = np.concatenate([part[1] for part in parts])
+        weights = np.concatenate([part[2] for part in parts]).astype(np.float32)
+
+        # Preserve the physical process mixture within each class, but make the
+        # total signal and background contribution equal in every optimizer step.
+        for label in (0, 1):
+            selected = labels == label
+            class_sum = float(weights[selected].sum(dtype=np.float64))
+            if not math.isfinite(class_sum) or class_sum <= 0.0:
+                raise RuntimeError(f"Invalid training-weight sum for class {label}")
+            weights[selected] *= count / class_sum
+
+        order = rng.permutation(len(labels))
+        yield (
+            {name: values[order] for name, values in packed.items()},
+            labels[order],
+            weights[order],
+        )
+
+
+def fit_normalizer(
+    samples: list[SampleInfo], args: argparse.Namespace
+) -> StructuredNormalizer:
+    event_moments = RunningMoments(len(EVENT_FIELDS))
+    jet_moments = RunningMoments(len(JET_FIELDS))
+    constituent_moments = RunningMoments(len(CONSTITUENT_CONTINUOUS_FIELDS))
+    seen = 0
+    for packed, _, _, _, _ in iter_batches(
+        samples, args, "train", cap_per_class=args.normalization_events
+    ):
+        event_moments.update(transform_event(packed["event"]))
+        jet_moments.update(transform_jets(packed["jets"]))
+        constituent_moments.update(
+            transform_constituents(packed["constituents"]), packed["mask"]
+        )
+        seen += len(packed["event"])
+    event_mean, event_std = event_moments.finish()
+    jet_mean, jet_std = jet_moments.finish()
+    constituent_mean, constituent_std = constituent_moments.finish()
+    print(f"Fitted streaming normalization on {seen:,} events")
+    return StructuredNormalizer(
+        event_mean,
+        event_std,
+        jet_mean,
+        jet_std,
+        constituent_mean,
+        constituent_std,
+    )
+
+
+class AllVariableNet(nn.Module):
+    def __init__(
+        self, type_buckets: int, type_embedding_dim: int, dropout: float
+    ) -> None:
+        super().__init__()
+        self.type_embedding = nn.Embedding(
+            type_buckets, type_embedding_dim, padding_idx=0
+        )
+        self.particle_encoder = nn.Sequential(
+            nn.Linear(len(CONSTITUENT_CONTINUOUS_FIELDS) + type_embedding_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+        )
+        self.jet_scalar_encoder = nn.Sequential(
+            nn.Linear(len(JET_FIELDS), 64), nn.ReLU(), nn.Linear(64, 64), nn.ReLU()
+        )
+        self.jet_fusion = nn.Sequential(
+            nn.Linear(64 + 64 + 64, 128),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(128, 96),
+            nn.ReLU(),
+        )
+        self.event_encoder = nn.Sequential(
+            nn.Linear(len(EVENT_FIELDS), 32), nn.ReLU(), nn.Linear(32, 32), nn.ReLU()
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(2 * 96 + 32, 128),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(64, 1),
+        )
+
+    def forward(
+        self,
+        event: torch.Tensor,
+        jets: torch.Tensor,
+        constituents: torch.Tensor,
+        types: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> torch.Tensor:
+        particle_input = torch.cat(
+            (constituents, self.type_embedding(types)), dim=-1
+        )
+        particle_latent = self.particle_encoder(particle_input)
+        float_mask = mask.unsqueeze(-1).to(particle_latent.dtype)
+        mean_pool = (particle_latent * float_mask).sum(dim=2) / float_mask.sum(
+            dim=2
+        ).clamp_min(1.0)
+        max_pool = particle_latent.masked_fill(~mask.unsqueeze(-1), -torch.inf).max(
+            dim=2
+        ).values
+        max_pool = torch.where(torch.isfinite(max_pool), max_pool, torch.zeros_like(max_pool))
+        jet_scalar = self.jet_scalar_encoder(jets)
+        jet_latent = self.jet_fusion(torch.cat((jet_scalar, mean_pool, max_pool), dim=-1))
+        event_latent = self.event_encoder(event)
+        combined = torch.cat((jet_latent.flatten(1), event_latent), dim=-1)
+        return self.classifier(combined).squeeze(-1)
+
+
+def choose_device(name: str) -> torch.device:
+    if name == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if name == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("--device cuda was requested but CUDA is unavailable")
+    return torch.device(name)
+
+
+def tensors(
+    packed: dict[str, np.ndarray], device: torch.device
+) -> tuple[torch.Tensor, ...]:
+    return (
+        torch.from_numpy(packed["event"]).to(device),
+        torch.from_numpy(packed["jets"]).to(device),
+        torch.from_numpy(packed["constituents"]).to(device),
+        torch.from_numpy(packed["types"]).to(device),
+        torch.from_numpy(packed["mask"]).to(device),
+    )
+
+
+def train_epoch(
+    model: AllVariableNet,
+    samples: list[SampleInfo],
+    normalizer: StructuredNormalizer,
+    optimizer: torch.optim.Optimizer,
+    criterion: nn.Module,
+    device: torch.device,
+    args: argparse.Namespace,
+    epoch: int,
+) -> float:
+    model.train()
+    loss_numerator, loss_denominator = 0.0, 0.0
+    per_class = args.batch_size // 2
+    events_by_class = {
+        label: sum(sample.rows for sample in samples if sample.label == label)
+        for label in (0, 1)
+    }
+    if args.max_training_events_per_class > 0:
+        events_by_class = {
+            label: min(count, args.max_training_events_per_class)
+            for label, count in events_by_class.items()
+        }
+    total_batches = math.ceil(min(events_by_class.values()) / per_class)
+    batches = iter_balanced_train_batches(samples, args, epoch)
+    progress = tqdm(
+        batches,
+        total=total_batches,
+        desc=f"Epoch {epoch:3d}/{args.epochs}",
+        unit="batch",
+        dynamic_ncols=True,
+        disable=not args.progress_bar,
+    )
+    for packed, labels, train_weights in progress:
+        packed = normalizer.apply(packed)
+        target = torch.from_numpy(labels).to(device)
+        weight = torch.from_numpy(train_weights).to(device)
+        optimizer.zero_grad(set_to_none=True)
+        logits = model(*tensors(packed, device))
+        if not torch.isfinite(logits).all():
+            raise FloatingPointError("Training produced non-finite logits")
+        per_event_loss = criterion(logits, target)
+        denominator = weight.sum().clamp_min(1.0e-12)
+        loss = (per_event_loss * weight).sum() / denominator
+        if not torch.isfinite(loss):
+            raise FloatingPointError("Training produced a non-finite loss")
+        loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+        optimizer.step()
+        batch_denominator = float(denominator.detach().cpu())
+        loss_numerator += float((per_event_loss * weight).sum().detach().cpu())
+        loss_denominator += batch_denominator
+        progress.set_postfix(
+            loss=f"{loss_numerator / loss_denominator:.6f}", refresh=False
+        )
+    if loss_denominator == 0.0:
+        raise RuntimeError("Balanced training produced no mixed mini-batches")
+    return loss_numerator / loss_denominator
+
+
+@torch.no_grad()
+def predict(
+    model: AllVariableNet,
+    samples: list[SampleInfo],
+    normalizer: StructuredNormalizer,
+    device: torch.device,
+    args: argparse.Namespace,
+    cap_per_class: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    model.eval()
+    all_scores, all_labels, all_weights, all_processes = [], [], [], []
+    for packed, labels, physical_weights, _, processes in iter_batches(
+        samples, args, "validation", cap_per_class=cap_per_class
+    ):
+        packed = normalizer.apply(packed)
+        batch_scores = []
+        for start in range(0, len(labels), args.batch_size):
+            end = min(start + args.batch_size, len(labels))
+            logits = model(*tensors(slice_batch(packed, start, end), device))
+            if not torch.isfinite(logits).all():
+                raise FloatingPointError("Validation produced non-finite logits")
+            batch_scores.append(torch.sigmoid(logits).cpu().numpy())
+        all_scores.append(np.concatenate(batch_scores))
+        all_labels.append(labels.astype(np.int8))
+        all_weights.append(physical_weights)
+        all_processes.append(processes)
+    return (
+        np.concatenate(all_scores),
+        np.concatenate(all_labels),
+        np.concatenate(all_weights),
+        np.concatenate(all_processes),
+    )
+
+
+def composition_table(
+    labels: np.ndarray,
+    scores: np.ndarray,
+    weights: np.ndarray,
+    processes: np.ndarray,
+    threshold: float,
+) -> pd.DataFrame:
+    rows = []
+    selected = scores >= threshold
+    for process in np.unique(processes):
+        all_mask = processes == process
+        mask = selected & all_mask
+        sumw = weights[mask].sum()
+        sumw2 = np.square(weights[mask]).sum()
+        rows.append(
+            {
+                "process": process,
+                "class": "signal" if labels[all_mask][0] else "background",
+                "yield": sumw,
+                "efficiency": sumw / weights[all_mask].sum(),
+                "neff": sumw * sumw / sumw2 if sumw2 > 0 else 0.0,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def main() -> None:
+    args = parse_args()
+    if args.max_constituents < 0 or args.type_buckets < 2:
+        raise ValueError("--max-constituents must be non-negative and --type-buckets >= 2")
+    if args.thresholds < 2:
+        raise ValueError("--thresholds must be at least 2")
+    if args.optimize_background_systematic not in args.background_systematics:
+        args.background_systematics.append(args.optimize_background_systematic)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    random.seed(args.random_state)
+    np.random.seed(args.random_state)
+    torch.manual_seed(args.random_state)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.random_state)
+
+    manifest = json.loads(args.normalization_manifest.read_text())
+    print(f"Using all {len(ALL_FIELDS)} named fields:")
+    for name in ALL_FIELDS:
+        print(f"  {name}")
+    if args.max_constituents == 0:
+        print("Constituent lists: retaining every constituent")
+    else:
+        print(
+            f"Constituent lists: keep up to {args.max_constituents} highest-energy "
+            "constituents per selected jet"
+        )
+    train_samples = build_samples(args.dataset_root, manifest, "train")
+    validation_samples = build_samples(args.dataset_root, manifest, "validation")
+    normalizer = fit_normalizer(train_samples, args)
+    device = choose_device(args.device)
+    print(f"Training on {device}")
+
+    model = AllVariableNet(
+        args.type_buckets, args.type_embedding_dim, args.dropout
+    ).to(device)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
+    )
+    criterion = nn.BCEWithLogitsLoss(reduction="none")
+    history = []
+    best_auc, best_epoch, stale = -np.inf, 0, 0
+    best_state: dict[str, torch.Tensor] | None = None
+    start_time = time.perf_counter()
+    for epoch in range(1, args.epochs + 1):
+        loss = train_epoch(
+            model,
+            train_samples,
+            normalizer,
+            optimizer,
+            criterion,
+            device,
+            args,
+            epoch,
+        )
+        scores, labels, weights, _ = predict(
+            model,
+            validation_samples,
+            normalizer,
+            device,
+            args,
+            args.validation_events_per_epoch,
+        )
+        if np.unique(labels).size != 2:
+            raise RuntimeError("Epoch validation sample does not contain both classes")
+        if not np.isfinite(scores).all():
+            raise FloatingPointError("Epoch validation produced non-finite scores")
+        auc = roc_auc_score(labels, scores, sample_weight=weights)
+        history.append({"epoch": epoch, "training_loss": loss, "validation_auc": auc})
+        print(f"Epoch {epoch:3d}: loss={loss:.7f} validation weighted AUC={auc:.6f}")
+        if auc > best_auc + 1.0e-5:
+            best_auc, best_epoch, stale = auc, epoch, 0
+            best_state = copy.deepcopy(model.state_dict())
+        else:
+            stale += 1
+            if stale >= args.patience:
+                print(f"Early stopping after {epoch} epochs; best epoch was {best_epoch}")
+                break
+    if best_state is None:
+        raise RuntimeError("Training produced no model state")
+    model.load_state_dict(best_state)
+    fit_seconds = time.perf_counter() - start_time
+
+    print("Running full physical validation...")
+    scores, labels, weights, processes = predict(
+        model,
+        validation_samples,
+        normalizer,
+        device,
+        args,
+        args.max_validation_events_per_class,
+    )
+    if not np.isfinite(scores).all():
+        raise FloatingPointError("Full validation produced non-finite scores")
+    auc = roc_auc_score(labels, scores, sample_weight=weights)
+    average_precision = average_precision_score(labels, scores, sample_weight=weights)
+    systematics = sorted(set(args.background_systematics))
+    scan = common.threshold_scan(labels, scores, weights, systematics, args.thresholds)
+    z_column = f"asimov_z_bkg_syst_{args.optimize_background_systematic:g}"
+    eligible = scan[
+        (scan["background_neff"] >= args.min_background_neff)
+        & np.isfinite(scan[z_column])
+    ]
+    if eligible.empty:
+        raise RuntimeError(
+            f"No threshold has background Neff >= {args.min_background_neff}. "
+            "Increase validation statistics or lower the requirement for diagnostics only."
+        )
+    best = eligible.loc[eligible[z_column].idxmax()]
+    threshold = float(best["threshold"])
+
+    configuration = {
+        "event_fields": EVENT_FIELDS,
+        "jet_fields": JET_FIELDS,
+        "constituent_continuous_fields": CONSTITUENT_CONTINUOUS_FIELDS,
+        "constituent_type_field": CONSTITUENT_TYPE_FIELD,
+        "max_constituents": args.max_constituents,
+        "type_buckets": args.type_buckets,
+        "type_embedding_dim": args.type_embedding_dim,
+        "dropout": args.dropout,
+    }
+    metrics = {
+        "model": "structured_event_nn_all_variables",
+        "named_field_count": len(ALL_FIELDS),
+        "fields": ALL_FIELDS,
+        "architecture": "masked constituent Deep Sets + per-jet encoder + event encoder",
+        "best_epoch": best_epoch,
+        "fit_seconds": fit_seconds,
+        "n_validation": len(labels),
+        "weighted_roc_auc": auc,
+        "weighted_average_precision": average_precision,
+        "optimization_background_systematic": args.optimize_background_systematic,
+        "min_background_neff": args.min_background_neff,
+        "best_cut": best.to_dict(),
+        "background_systematics": systematics,
+        "configuration": configuration,
+    }
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "configuration": configuration,
+            "normalization": normalizer.state(),
+            "validation_threshold": threshold,
+            "metrics": common.json_safe(metrics),
+        },
+        args.output_dir / "event_nn_all_variables.pt",
+    )
+    scan.to_csv(args.output_dir / "significance_scan.csv", index=False)
+    common.operating_points(labels, scores, weights).to_csv(
+        args.output_dir / "matched_signal_efficiency_points.csv", index=False
+    )
+    composition_table(labels, scores, weights, processes, threshold).to_csv(
+        args.output_dir / "best_cut_process_composition.csv", index=False
+    )
+    pd.DataFrame(history).to_csv(args.output_dir / "training_history.csv", index=False)
+    (args.output_dir / "metrics.json").write_text(
+        json.dumps(common.json_safe(metrics), indent=2) + "\n"
+    )
+
+    print("\nValidation result")
+    print(f"  Weighted ROC AUC:             {auc:.6f}")
+    print(f"  Weighted average precision:   {average_precision:.6g}")
+    print(f"  Best epoch:                    {best_epoch}")
+    print(f"  Best threshold:                {threshold:.6f}")
+    print(f"  Signal yield:                  {best['signal_yield']:.6g}")
+    print(f"  Background yield:              {best['background_yield']:.6g}")
+    print(f"  Signal efficiency:             {best['signal_efficiency']:.6g}")
+    print(f"  Background efficiency:         {best['background_efficiency']:.6e}")
+    print(f"  S/B:                           {best['s_over_b']:.6g}")
+    for fraction in systematics:
+        print(
+            f"  Asimov Z ({100 * fraction:g}% bkg syst):      "
+            f"{best[f'asimov_z_bkg_syst_{fraction:g}']:.6g}"
+        )
+    print(f"  Background effective N:        {best['background_neff']:.3f}")
+    print(f"\nSaved results to {args.output_dir}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        raise

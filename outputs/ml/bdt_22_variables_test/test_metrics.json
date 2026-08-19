@@ -1,0 +1,53 @@
+{
+  "model": "outputs/ml/bdt_22_variables/bdt_model.joblib",
+  "test_signal_events": 185017,
+  "test_background_events": 391553,
+  "test_auc": 0.9364064538864877,
+  "test_average_precision": 0.8684687216992975,
+  "operating_points": [
+    {
+      "target_signal_efficiency": 0.5,
+      "threshold": 0.8954469477421508,
+      "signal_efficiency": 0.5000027024543691,
+      "background_efficiency": 0.024157649156052948,
+      "background_rejection_factor": 41.39475631673538,
+      "signal_survivors": 92509,
+      "signal_events": 185017,
+      "background_survivors": 9459,
+      "background_events": 391553
+    },
+    {
+      "target_signal_efficiency": 0.7,
+      "threshold": 0.78128910536317,
+      "signal_efficiency": 0.7000005404908738,
+      "background_efficiency": 0.06073251896933493,
+      "background_rejection_factor": 16.465643397813288,
+      "signal_survivors": 129512,
+      "signal_events": 185017,
+      "background_survivors": 23780,
+      "background_events": 391553
+    },
+    {
+      "target_signal_efficiency": 0.8,
+      "threshold": 0.6620092784774265,
+      "signal_efficiency": 0.8000021619634953,
+      "background_efficiency": 0.0981425247667621,
+      "background_rejection_factor": 10.189263037368587,
+      "signal_survivors": 148014,
+      "signal_events": 185017,
+      "background_survivors": 38428,
+      "background_events": 391553
+    },
+    {
+      "target_signal_efficiency": 0.9,
+      "threshold": 0.44277080238918765,
+      "signal_efficiency": 0.9000037834361166,
+      "background_efficiency": 0.1780550781120308,
+      "background_rejection_factor": 5.616239708540119,
+      "signal_survivors": 166516,
+      "signal_events": 185017,
+      "background_survivors": 69718,
+      "background_events": 391553
+    }
+  ]
+}

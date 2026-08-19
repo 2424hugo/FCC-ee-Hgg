@@ -1,0 +1,33 @@
+{
+  "luminosity_ab_inv": 10.0,
+  "samples": [
+    {
+      "name": "H_to_gg",
+      "class": "signal",
+      "path_glob": "signal/**/*.parquet",
+      "cross_section_pb": 0.00007384,
+      "generated_events": {
+        "train": 800000,
+        "validation": 200000,
+        "test": 200000
+      },
+      "filter_efficiency": 1.0,
+      "k_factor": 1.0,
+      "branching_fraction": 1.0
+    },
+    {
+      "name": "qq",
+      "class": "background",
+      "path_glob": "background/**/*.parquet",
+      "cross_section_pb": 363.1,
+      "generated_events": {
+        "train": 5000000,
+        "validation": 1200000,
+        "test": 1200000
+      },
+      "filter_efficiency": 1.0,
+      "k_factor": 1.0,
+      "branching_fraction": 1.0
+    }
+  ]
+}

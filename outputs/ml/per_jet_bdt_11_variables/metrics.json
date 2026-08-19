@@ -1,0 +1,205 @@
+{
+  "model_definition": "per-jet H->gg signal-candidate versus inclusive background classifier",
+  "features": [
+    "jet_mass",
+    "constituent_multiplicity",
+    "e2_beta_0p2",
+    "e3_beta_0p2",
+    "c2_beta_0p2",
+    "d2_beta_0p2"
+  ],
+  "number_of_features": 6,
+  "selected_jets_per_event": 2,
+  "counts": {
+    "training_signal_events": 100000,
+    "training_background_events": 100000,
+    "training_signal_jets": 200000,
+    "training_background_jets": 200000,
+    "validation_signal_events": 184878,
+    "validation_background_events": 392045,
+    "validation_signal_jets": 369756,
+    "validation_background_jets": 784090
+  },
+  "validation": {
+    "roc_auc": 0.8607866158647071,
+    "average_precision": 0.7288067820083005,
+    "per_jet_operating_points": [
+      {
+        "target_signal_efficiency": 0.5,
+        "threshold": 0.7750094820326416,
+        "signal_efficiency": 0.5,
+        "background_efficiency": 0.07593260977693887,
+        "background_rejection_factor": 13.169572373946052,
+        "signal_jets_accepted": 184878,
+        "signal_jets": 369756,
+        "background_jets_accepted": 59538,
+        "background_jets": 784090,
+        "background_efficiency_wilson_95": [
+          0.07534836998347659,
+          0.07652100478073594
+        ],
+        "roc_fpr": 0.07593260977693887,
+        "roc_tpr": 0.5
+      },
+      {
+        "target_signal_efficiency": 0.6,
+        "threshold": 0.7116070991359381,
+        "signal_efficiency": 0.6000037862806824,
+        "background_efficiency": 0.1114183320792256,
+        "background_rejection_factor": 8.975183718321468,
+        "signal_jets_accepted": 221855,
+        "signal_jets": 369756,
+        "background_jets_accepted": 87362,
+        "background_jets": 784090,
+        "background_efficiency_wilson_95": [
+          0.11072378142082563,
+          0.1121166902422809
+        ],
+        "roc_fpr": 0.1114183320792256,
+        "roc_tpr": 0.6000037862806824
+      },
+      {
+        "target_signal_efficiency": 0.7,
+        "threshold": 0.6270460191652851,
+        "signal_efficiency": 0.7000021635889614,
+        "background_efficiency": 0.16013977987220854,
+        "background_rejection_factor": 6.244544614698481,
+        "signal_jets_accepted": 258830,
+        "signal_jets": 369756,
+        "background_jets_accepted": 125564,
+        "background_jets": 784090,
+        "background_efficiency_wilson_95": [
+          0.15932970276716893,
+          0.16095318708640435
+        ],
+        "roc_fpr": 0.16013977987220854,
+        "roc_tpr": 0.7000021635889614
+      },
+      {
+        "target_signal_efficiency": 0.8,
+        "threshold": 0.5126246261706972,
+        "signal_efficiency": 0.800003245383442,
+        "background_efficiency": 0.23517325817189352,
+        "background_rejection_factor": 4.252184146162898,
+        "signal_jets_accepted": 295806,
+        "signal_jets": 369756,
+        "background_jets_accepted": 184397,
+        "background_jets": 784090,
+        "background_efficiency_wilson_95": [
+          0.23423582716020905,
+          0.23611328407967216
+        ],
+        "roc_fpr": 0.23517325817189352,
+        "roc_tpr": 0.800003245383442
+      },
+      {
+        "target_signal_efficiency": 0.9,
+        "threshold": 0.3423832026814631,
+        "signal_efficiency": 0.9000043271779228,
+        "background_efficiency": 0.3693121963039957,
+        "background_rejection_factor": 2.707736191785174,
+        "signal_jets_accepted": 332782,
+        "signal_jets": 369756,
+        "background_jets_accepted": 289574,
+        "background_jets": 784090,
+        "background_efficiency_wilson_95": [
+          0.36824459816533234,
+          0.37038107498279266
+        ],
+        "roc_fpr": 0.3693121963039957,
+        "roc_tpr": 0.9000043271779228
+      }
+    ],
+    "primary_operating_point": {
+      "target_signal_efficiency": 0.7,
+      "threshold": 0.6270460191652851,
+      "signal_efficiency": 0.7000021635889614,
+      "background_efficiency": 0.16013977987220854,
+      "background_rejection_factor": 6.244544614698481,
+      "signal_jets_accepted": 258830,
+      "signal_jets": 369756,
+      "background_jets_accepted": 125564,
+      "background_jets": 784090,
+      "background_efficiency_wilson_95": [
+        0.15932970276716893,
+        0.16095318708640435
+      ],
+      "roc_fpr": 0.16013977987220854,
+      "roc_tpr": 0.7000021635889614
+    },
+    "direct_two_tag_event_performance": {
+      "threshold": 0.6270460191652851,
+      "signal_events_accepted": 93305,
+      "signal_events": 184878,
+      "signal_event_efficiency": 0.5046841701013641,
+      "background_events_accepted": 13366,
+      "background_events": 392045,
+      "background_event_efficiency": 0.03409302503539135,
+      "background_event_rejection_factor": 29.33151279365554,
+      "background_event_efficiency_wilson_95": [
+        0.033529532491006195,
+        0.034665647883296555
+      ],
+      "signal_jet_score_correlation": 0.1673802786396047,
+      "background_jet_score_correlation": 0.09421504470134152
+    }
+  },
+  "training": {
+    "classifier": "HistGradientBoostingClassifier",
+    "learning_rate": 0.05,
+    "maximum_iterations": 300,
+    "iterations_used": 300,
+    "maximum_leaf_nodes": 31,
+    "minimum_samples_per_leaf": 100,
+    "l2_regularization": 1.0,
+    "early_stopping": true,
+    "class_weighting": "balanced signal/background total weight",
+    "random_state": 42
+  },
+  "data_quality": {
+    "missing_values": {
+      "signal_train": {},
+      "background_train": {
+        "c2_beta_0p2": 1050,
+        "d2_beta_0p2": 1050
+      },
+      "signal_validation": {},
+      "background_validation": {
+        "c2_beta_0p2": 4121,
+        "d2_beta_0p2": 4121
+      }
+    },
+    "infinite_values_converted_to_nan": {
+      "signal_train": {},
+      "background_train": {},
+      "signal_validation": {},
+      "background_validation": {}
+    }
+  },
+  "permutation_importance": {
+    "c2_beta_0p2": {
+      "mean_auc_decrease": 0.21081286200000005,
+      "standard_deviation": 0.0028429199339949844
+    },
+    "constituent_multiplicity": {
+      "mean_auc_decrease": 0.110664069,
+      "standard_deviation": 0.0030922462272083067
+    },
+    "jet_mass": {
+      "mean_auc_decrease": 0.06601216400000003,
+      "standard_deviation": 0.0022723551402617282
+    },
+    "d2_beta_0p2": {
+      "mean_auc_decrease": 0.03501816000000004,
+      "standard_deviation": 0.0006604087595042617
+    },
+    "e3_beta_0p2": {
+      "mean_auc_decrease": 0.00432071200000006,
+      "standard_deviation": 0.0003280781594925028
+    },
+    "e2_beta_0p2": {
+      "mean_auc_decrease": 0.003422638,
+      "standard_deviation": 0.0003879007943095822
+    }
+  }
+}

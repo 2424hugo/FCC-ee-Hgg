@@ -1,0 +1,218 @@
+{
+  "model": "two jet scores plus event topology HistGradientBoostingClassifier",
+  "features": [
+    "leading_jet_score",
+    "subleading_jet_score",
+    "event_invariant_mass",
+    "n_jets_original",
+    "leading_jet_energy",
+    "subleading_jet_energy",
+    "leading_jet_pt",
+    "subleading_jet_pt",
+    "leading_jet_p",
+    "subleading_jet_p",
+    "leading_jet_theta",
+    "subleading_jet_theta"
+  ],
+  "jet_features": [
+    "jet_mass",
+    "constituent_multiplicity",
+    "e2_beta_0p2",
+    "e3_beta_0p2",
+    "c2_beta_0p2",
+    "d2_beta_0p2"
+  ],
+  "training_score_mode": "crossfit",
+  "cross_fit_folds": 5,
+  "validation": {
+    "weighted_roc_auc": 0.9358082733671826,
+    "weighted_average_precision": 4.925069037146241e-05,
+    "best_cut": {
+      "threshold": 0.9885042912932662,
+      "signal_yield": 6.29486,
+      "background_yield": 78671.66666666666,
+      "signal_events": 1705,
+      "background_events": 26,
+      "signal_efficiency": 0.00922229794783587,
+      "background_efficiency": 6.631891747120868e-05,
+      "signal_over_background": 8.00143211236574e-05,
+      "signal_over_sqrt_background": 0.022442792817928565,
+      "signal_neff": 1704.9999999999993,
+      "background_neff": 25.999999999999993,
+      "asimov_z_bkg_syst_0pct": 0.022442493537070105,
+      "asimov_z_bkg_syst_1pct": 0.007536566800405765,
+      "asimov_z_bkg_syst_5pct": 0.0015961885293296447,
+      "asimov_z_bkg_syst_10pct": 0.000799604417477143
+    },
+    "optimization_background_systematic_fraction": 0.05,
+    "reported_background_systematic_fractions": [
+      0.0,
+      0.01,
+      0.05,
+      0.1
+    ],
+    "weights_are_physical_expected_yields": true,
+    "template_edges": [
+      0.0,
+      0.0027954668672228815,
+      0.00924616342474882,
+      0.025803405207481617,
+      0.0644042461644085,
+      0.14515414570276247,
+      0.29965952042730065,
+      0.5891312433392473,
+      1.0
+    ],
+    "best_cut_process_composition": [
+      {
+        "process": "H_to_gg",
+        "class": "signal",
+        "events_total": 184878,
+        "events_selected": 1705,
+        "yield_total": 682.569576,
+        "yield_selected": 6.29486,
+        "efficiency": 0.00922229794783587,
+        "sumw2_selected": 0.02324062312000001,
+        "neff_selected": 1704.9999999999993,
+        "selected_background_fraction": 0.0
+      },
+      {
+        "process": "qq",
+        "class": "background",
+        "events_total": 392045,
+        "events_selected": 26,
+        "yield_total": 1186262829.1666663,
+        "yield_selected": 78671.66666666666,
+        "efficiency": 6.631891747120868e-05,
+        "sumw2_selected": 238047351.3888889,
+        "neff_selected": 25.999999999999993,
+        "selected_background_fraction": 1.0
+      }
+    ]
+  },
+  "counts": {
+    "training_signal_events": 739575,
+    "training_background_events": 1629086,
+    "validation_signal_events": 184878,
+    "validation_background_events": 392045
+  },
+  "training": {
+    "iterations_used": 300,
+    "class_totals_balanced": true,
+    "physical_background_composition_preserved": true
+  },
+  "normalization": {
+    "source": "manifest",
+    "manifest": "config/normalization_manifest.json",
+    "luminosity_ab_inv": 10.0,
+    "weight_scale": 1.0,
+    "samples": [
+      {
+        "name": "H_to_gg",
+        "class_name": "signal",
+        "path_glob": "signal/**/*.parquet",
+        "cross_section_pb": 7.384e-05,
+        "generated_events": {
+          "train": 800000.0,
+          "validation": 200000.0,
+          "test": 200000.0
+        },
+        "filter_efficiency": 1.0,
+        "k_factor": 1.0,
+        "branching_fraction": 1.0
+      },
+      {
+        "name": "qq",
+        "class_name": "background",
+        "path_glob": "background/**/*.parquet",
+        "cross_section_pb": 363.1,
+        "generated_events": {
+          "train": 5000000.0,
+          "validation": 1200000.0,
+          "test": 1200000.0
+        },
+        "filter_efficiency": 1.0,
+        "k_factor": 1.0,
+        "branching_fraction": 1.0
+      }
+    ]
+  },
+  "data_quality": {
+    "signal_train": {
+      "missing": {
+        "c2_beta_0p2": 1,
+        "d2_beta_0p2": 1
+      },
+      "infinities_converted_to_nan": {}
+    },
+    "background_train": {
+      "missing": {
+        "c2_beta_0p2": 16615,
+        "d2_beta_0p2": 16615
+      },
+      "infinities_converted_to_nan": {}
+    },
+    "signal_validation": {
+      "missing": {},
+      "infinities_converted_to_nan": {}
+    },
+    "background_validation": {
+      "missing": {
+        "c2_beta_0p2": 4121,
+        "d2_beta_0p2": 4121
+      },
+      "infinities_converted_to_nan": {}
+    }
+  },
+  "permutation_importance": {
+    "leading_jet_score": {
+      "mean_auc_decrease": 0.21255977232126835,
+      "std": 0.002514577157140099
+    },
+    "subleading_jet_score": {
+      "mean_auc_decrease": 0.13752140698001636,
+      "std": 0.0012994090234724758
+    },
+    "subleading_jet_energy": {
+      "mean_auc_decrease": 0.0037677034739569404,
+      "std": 0.00013852436166703037
+    },
+    "leading_jet_energy": {
+      "mean_auc_decrease": 0.00367151828243002,
+      "std": 0.00017623516567961872
+    },
+    "leading_jet_theta": {
+      "mean_auc_decrease": 0.0027731954720808137,
+      "std": 6.491521274377183e-05
+    },
+    "event_invariant_mass": {
+      "mean_auc_decrease": 0.0025865574355938836,
+      "std": 0.00012006986841689317
+    },
+    "subleading_jet_theta": {
+      "mean_auc_decrease": 0.0025226329964269877,
+      "std": 0.00013359967664161113
+    },
+    "leading_jet_pt": {
+      "mean_auc_decrease": 0.001725987567854559,
+      "std": 3.9927263577277665e-05
+    },
+    "subleading_jet_p": {
+      "mean_auc_decrease": 0.0012372509878263438,
+      "std": 7.782722912585337e-05
+    },
+    "subleading_jet_pt": {
+      "mean_auc_decrease": 0.0006150222254699633,
+      "std": 7.733501768175111e-05
+    },
+    "leading_jet_p": {
+      "mean_auc_decrease": 0.0005195046685060767,
+      "std": 5.7718693459399135e-05
+    },
+    "n_jets_original": {
+      "mean_auc_decrease": 0.00017162198562072905,
+      "std": 1.0443602151832323e-05
+    }
+  },
+  "interpretation": "expected sensitivity"
+}

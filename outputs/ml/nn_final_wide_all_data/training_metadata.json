@@ -1,0 +1,24 @@
+{
+  "architecture": "wide",
+  "hidden_dims": [
+    256,
+    128,
+    64
+  ],
+  "dropout": 0.15,
+  "parameters": 48001,
+  "epochs": 39,
+  "epoch_selection": "median best_epoch from previous wide multi-seed study",
+  "previous_best_epochs": [
+    34,
+    32,
+    41,
+    47,
+    39
+  ],
+  "signal_events": 924453,
+  "background_events": 2021131,
+  "total_events": 2945584,
+  "pos_weight": 2.1862993575660417,
+  "test_used_during_training": false
+}

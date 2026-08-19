@@ -1,0 +1,15 @@
+{
+  "test_events": 200,
+  "test_accuracy": 0.83,
+  "test_roc_auc": 0.9125,
+  "confusion_matrix": [
+    [
+      76,
+      24
+    ],
+    [
+      10,
+      90
+    ]
+  ]
+}

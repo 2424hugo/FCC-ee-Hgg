@@ -1,0 +1,55 @@
+{
+  "arguments": {
+    "train_parquet": [
+      "cache/analysis_dataset/*/train/*.parquet"
+    ],
+    "val_parquet": [
+      "cache/analysis_dataset/*/validation/*.parquet"
+    ],
+    "test_parquet": [
+      "cache/analysis_dataset/*/test/*.parquet"
+    ],
+    "label_field": "label",
+    "label_source": "event",
+    "label_format": "binary",
+    "quark_pdgs": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "unknown_label_policy": "error",
+    "output_dir": "results/single_jet_particlenet_v3_10000",
+    "epochs": 10,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "patience": 7,
+    "seed": 12345,
+    "num_workers": 2,
+    "max_constituents": 50,
+    "shard_cache_size": 2,
+    "prefetch_factor": 2,
+    "pin_memory": null,
+    "persistent_workers": true,
+    "amp": null,
+    "use_particle_type": true,
+    "particle_types": null,
+    "device": "cuda",
+    "limit_jets": 10000
+  },
+  "device": "cuda",
+  "amp_enabled": true,
+  "pin_memory": true,
+  "class_convention": {
+    "0": "quark",
+    "1": "gluon"
+  },
+  "particle_type_vocabulary": [
+    0,
+    22,
+    130
+  ],
+  "trainable_parameters": 367487
+}

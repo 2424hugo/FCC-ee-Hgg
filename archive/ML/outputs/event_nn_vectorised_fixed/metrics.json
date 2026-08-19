@@ -1,0 +1,91 @@
+{
+  "model": "structured_event_nn_all_variables",
+  "named_field_count": 22,
+  "fields": [
+    "event_invariant_mass",
+    "n_jets_original",
+    "jet_energy",
+    "jet_px",
+    "jet_py",
+    "jet_pz",
+    "jet_mass",
+    "constituent_multiplicity",
+    "e2_beta_0p2",
+    "e3_beta_0p2",
+    "jet_pt",
+    "jet_p",
+    "c2_beta_0p2",
+    "d2_beta_0p2",
+    "jet_theta",
+    "constituent_energy",
+    "constituent_px",
+    "constituent_py",
+    "constituent_pz",
+    "constituent_mass",
+    "constituent_charge",
+    "constituent_type"
+  ],
+  "architecture": "masked constituent Deep Sets + per-jet encoder + event encoder",
+  "best_epoch": 30,
+  "fit_seconds": 4039.4844022709876,
+  "n_validation": 576923,
+  "weighted_roc_auc": 0.9573964484891416,
+  "weighted_average_precision": 0.0001715641731286135,
+  "optimization_background_systematic": 0.0001,
+  "min_background_neff": 100.0,
+  "best_cut": {
+    "threshold": 0.9725,
+    "signal_yield": 196.73560400004305,
+    "background_yield": 5370854.1666666325,
+    "signal_efficiency": 0.28822791246125373,
+    "background_efficiency": 0.004527541481207486,
+    "background_neff": 1775.0000000000355,
+    "s_over_b": 3.6630226383924526e-05,
+    "asimov_z_bkg_syst_0": 0.0848904100730425,
+    "asimov_z_bkg_syst_0.0001": 0.0826985668052825,
+    "asimov_z_bkg_syst_0.01": 0.0036596864895632754,
+    "asimov_z_bkg_syst_0.05": 0.0007315893872739011,
+    "asimov_z_bkg_syst_0.1": 0.0003656793720848309
+  },
+  "background_systematics": [
+    0.0,
+    0.0001,
+    0.01,
+    0.05,
+    0.1
+  ],
+  "configuration": {
+    "event_fields": [
+      "event_invariant_mass",
+      "n_jets_original"
+    ],
+    "jet_fields": [
+      "jet_energy",
+      "jet_px",
+      "jet_py",
+      "jet_pz",
+      "jet_mass",
+      "constituent_multiplicity",
+      "e2_beta_0p2",
+      "e3_beta_0p2",
+      "jet_pt",
+      "jet_p",
+      "c2_beta_0p2",
+      "d2_beta_0p2",
+      "jet_theta"
+    ],
+    "constituent_continuous_fields": [
+      "constituent_energy",
+      "constituent_px",
+      "constituent_py",
+      "constituent_pz",
+      "constituent_mass",
+      "constituent_charge"
+    ],
+    "constituent_type_field": "constituent_type",
+    "max_constituents": 70,
+    "type_buckets": 512,
+    "type_embedding_dim": 16,
+    "dropout": 0.1
+  }
+}
