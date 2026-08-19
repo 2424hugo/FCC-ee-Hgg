@@ -1,163 +1,700 @@
-# FCC-ee `H → gg` versus `e⁺e⁻ → q\bar{q}`
+# FCC-ee H → gg Event Classification
 
-An event-level jet-substructure study of direct, resonant Higgs production at the FCC-ee. The analysis distinguishes the `H → gg` final state from continuum hadronic `e⁺e⁻ → q\bar{q}` events using simulated Delphes/IDEA samples, energy-correlation functions (ECFs), and a boosted decision tree (BDT).
+Event-level discrimination of resonant
 
-The wider motivation is sensitivity to the electron Yukawa coupling through `e⁺e⁻ → H` at `√s ≈ m_H`. This channel is experimentally difficult because the direct production rate is very small and hadronic backgrounds are much larger. A generator-level study identified `H → gg` as one of the more promising final states for this programme [d’Enterria, Poldaru & Wojcik (2022)](https://arxiv.org/abs/2107.02686).
+[
+e^+e^- \rightarrow H \rightarrow gg
+]
 
-## Analysis summary
+from the dominant continuum hadronic background
 
-- **Signal:** `e⁺e⁻ → H → gg`
-- **Background:** `e⁺e⁻ → q\bar{q}`
-- **Detector simulation:** FCC-ee Winter 2023 Delphes events with the IDEA detector card
-- **Selection:** jet-based event invariant mass `m_event > 120 GeV`, followed by the two highest-energy jets in each retained event
-- **Classifier:** 22-variable `HistGradientBoostingClassifier`, trained with class-balanced weights
+[
+e^+e^- \rightarrow q\bar q
+]
 
-The project is an analysis-development study. The BDT weights are deliberately balanced for classification and are **not** cross-section or luminosity weights; a final physics sensitivity calculation must apply the relevant rates, luminosity, selection efficiencies, and systematic uncertainties.
+at the FCC-ee Higgs pole.
 
-## Current validated BDT result
+This repository contains the data-processing, jet-substructure, machine-learning and statistical-analysis workflow developed for an MSc dissertation in Nuclear and Particle Physics at the University of Edinburgh.
 
-The committed reference run used 100,000 signal and 100,000 background events for both training and validation, with a held-out test split left untouched.
+The broader physics motivation is the possibility of constraining the electron Yukawa coupling through direct resonant Higgs production,
 
-| Quantity | Validation result |
-| --- | ---: |
-| ROC AUC | 0.9358 |
-| Average precision | 0.9283 |
-| Youden threshold | 0.4910 |
-| Signal efficiency at this threshold | 0.8818 |
-| Background efficiency at this threshold | 0.1593 |
-| Background rejection | 0.8407 |
-| Balanced accuracy | 0.8612 |
+[
+e^+e^- \rightarrow H,
+]
 
-The corresponding model, metrics, ROC curve and permutation-importance plot are written to `outputs/ml/bdt_22_variables/`.
+at (\sqrt{s}\simeq m_H). The (H\rightarrow gg) final state is particularly interesting because the Higgs branching fraction to gluons is relatively large while the principal experimental challenge is rejection of the enormous (e^+e^-\rightarrow q\bar q) continuum.
 
-The strongest variables in the reference permutation test were the leading and subleading `C₂(β=0.2)` observables, followed by leading-jet mass, constituent multiplicity and `D₂(β=0.2)`.
+---
 
-## Repository layout
+## Analysis overview
+
+The analysis uses simulated FCC-ee events at approximately
+
+[
+\sqrt{s}=125~\mathrm{GeV},
+]
+
+with detector response modelled using the IDEA Delphes configuration.
+
+### Signal
+
+```text
+e+ e- → H → gg
+```
+
+### Background
+
+```text
+e+ e- → q qbar
+```
+
+The analysis proceeds through:
+
+1. ROOT/EDM4hep event processing;
+2. event and jet preselection;
+3. reconstruction of the two highest-energy jets;
+4. jet-constituent extraction;
+5. calculation of high-level kinematic and jet-substructure observables;
+6. training of several machine-learning classifiers;
+7. evaluation on a held-out test sample;
+8. conversion of classifier efficiencies to physical signal and background yields.
+
+The final analysis primarily uses an event-level fully connected neural network. A boosted decision tree and ParticleNet-style constituent network are retained as comparison models.
+
+---
+
+# Physics motivation
+
+Direct Higgs production at the FCC-ee provides a possible probe of the electron Yukawa coupling,
+
+[
+y_e = \frac{\sqrt{2}m_e}{v}.
+]
+
+For a monochromatised FCC-ee run near the Higgs resonance, previous studies estimate a direct Higgs production cross section of approximately
+
+[
+\sigma(e^+e^-\rightarrow H)\approx 0.28~\mathrm{fb},
+]
+
+for a centre-of-mass energy spread comparable to the Higgs width.
+
+Using
+
+[
+\mathrm{BR}(H\rightarrow gg)\approx 8.2%,
+]
+
+gives the benchmark signal cross section used in this analysis,
+
+[
+\sigma(H\rightarrow gg)\approx 0.023~\mathrm{fb}.
+]
+
+The corresponding continuum hadronic background is approximately
+
+[
+\sigma(e^+e^-\rightarrow q\bar q)\approx 61~\mathrm{pb}.
+]
+
+The signal-to-background hierarchy is therefore extremely severe, making background rejection rather than raw classification accuracy the central challenge.
+
+The benchmark integrated luminosity used for the final physics study is
+
+[
+\mathcal{L}=10~\mathrm{ab}^{-1}.
+]
+
+---
+
+# Dataset and event selection
+
+The analysis is based on FCC-ee Winter 2023 simulated samples using the IDEA detector configuration.
+
+The processed dataset is divided at the source-file level into independent
+
+```text
+train/
+validation/
+test/
+```
+
+splits, preventing events originating from the same ROOT file from leaking between datasets.
+
+The main event selection requires
+
+[
+m_{\mathrm{event}}>120~\mathrm{GeV}.
+]
+
+For each retained event, the two highest-energy reconstructed jets are selected and ordered as
+
+```text
+leading jet
+subleading jet
+```
+
+Jet constituents are reconstructed through the EDM4hep jet-particle relations and stored together with their four-vectors and particle information.
+
+The resulting Parquet dataset has the form
+
+```text
+cache/analysis_dataset/
+├── signal/
+│   ├── train/
+│   ├── validation/
+│   └── test/
+└── background/
+    ├── train/
+    ├── validation/
+    └── test/
+```
+
+Large intermediate datasets are intentionally excluded from version control.
+
+---
+
+# High-level observables
+
+The event-level classifiers use reconstructed event, jet and jet-substructure information.
+
+Important quantities include:
+
+### Event-level quantities
+
+* event invariant mass;
+* original jet multiplicity.
+
+### Jet kinematics
+
+For the leading and subleading jets:
+
+* energy;
+* mass;
+* momentum (p);
+* transverse momentum (p_T);
+* polar angle (\theta);
+* constituent multiplicity.
+
+### Energy correlation functions
+
+Jet substructure is characterised using energy-correlation functions with
+
+[
+\beta=0.2.
+]
+
+For constituent energy fractions
+
+[
+z_i=\frac{E_i}{E_J},
+]
+
+the two-point energy correlation function is
+
+[
+e_2^{(\beta)}
+=============
+
+\sum_{i<j}
+z_i z_j \theta_{ij}^{\beta},
+]
+
+and the three-point function is
+
+[
+e_3^{(\beta)}
+=============
+
+\sum_{i<j<k}
+z_i z_j z_k
+\left(
+\theta_{ij}\theta_{ik}\theta_{jk}
+\right)^{\beta}.
+]
+
+The derived observables
+
+[
+C_2=\frac{e_3}{e_2^2},
+\qquad
+D_2=\frac{e_3}{e_2^3}
+]
+
+are also included.
+
+These observables provide sensitivity to differences in the radiation structure of quark and gluon jets.
+
+---
+
+# Machine-learning models
+
+Several classifiers were investigated.
+
+## Event-level neural network
+
+The final classifier is a multilayer perceptron acting on the engineered event-level feature vector.
+
+The frozen final architecture is
+
+```text
+Input
+  ↓
+256
+  ↓
+128
+  ↓
+64
+  ↓
+Output
+```
+
+with:
+
+```text
+activation     = ReLU
+dropout        = 0.15
+batch norm     = enabled
+optimiser      = AdamW
+learning rate  = 1e-3
+weight decay   = 1e-4
+```
+
+The architecture was selected using validation data and multi-seed studies before the final refit.
+
+The final network is then refitted using all available training and validation events with the architecture and training procedure frozen.
+
+The test sample is not used during this final training stage.
+
+---
+
+## Boosted decision tree
+
+A `HistGradientBoostingClassifier` using the same engineered event-level information is retained as a conventional machine-learning benchmark.
+
+This provides a useful comparison between tree-based classification and the nonlinear representation learned by the neural network.
+
+---
+
+## ParticleNet
+
+A ParticleNet-inspired graph neural network was also developed using reconstructed jet constituents.
+
+Both event-level and single-jet variants were investigated.
+
+ParticleNet operates directly on constituent-level information rather than exclusively on engineered observables, providing a useful test of whether additional discrimination can be extracted from the internal particle structure of the jets.
+
+---
+
+# Final test-set performance
+
+All quoted final NN and BDT metrics below use the same held-out test sample:
+
+```text
+Signal events:      185,017
+Background events:  391,553
+Total:              576,570
+```
+
+The final model comparison is:
+
+| Model         |     ROC AUC | Average precision |
+| ------------- | ----------: | ----------------: |
+| Final wide NN | **0.94284** |       **0.88011** |
+| BDT           |     0.93641 |           0.86847 |
+| ParticleNet   |     0.90071 |          0.88426* |
+
+*ParticleNet was evaluated on a smaller balanced 10,000-event test sample and is therefore not directly identical in evaluation conditions to the full NN/BDT test.
+
+The event-level NN gives the best overall ROC performance.
+
+---
+
+## Background rejection
+
+For the final wide neural network:
+
+| Signal efficiency | Background efficiency | Background rejection |
+| ----------------: | --------------------: | -------------------: |
+|               50% |                0.0211 |                 47.4 |
+|               70% |                0.0541 |                 18.5 |
+|               80% |                0.0881 |                 11.3 |
+|               90% |                0.1608 |                 6.22 |
+
+The BDT gives, for comparison:
+
+| Signal efficiency | Background efficiency | Background rejection |
+| ----------------: | --------------------: | -------------------: |
+|               50% |                0.0242 |                 41.4 |
+|               70% |                0.0607 |                 16.5 |
+|               80% |                0.0981 |                 10.2 |
+|               90% |                0.1781 |                 5.62 |
+
+The neural network therefore provides a consistent improvement over the BDT across the tested working points.
+
+---
+
+# Feature-dependence study
+
+A leave-one-feature-out ablation study was performed to investigate which observables carry the greatest discrimination information.
+
+The largest reductions in validation AUC were obtained when removing:
+
+1. leading-jet (C_2^{(\beta=0.2)});
+2. subleading-jet (C_2^{(\beta=0.2)});
+3. subleading-jet polar angle;
+4. leading-jet polar angle;
+5. event invariant mass;
+6. leading-jet constituent multiplicity.
+
+This demonstrates that the neural network is using a combination of jet-substructure and event-level topology rather than relying on a single dominant observable.
+
+---
+
+# Physical event rates
+
+The final classifier is evaluated using the benchmark
+
+```text
+signal cross section      = 0.023 fb
+background cross section  = 61,000 fb
+integrated luminosity     = 10,000 fb^-1
+```
+
+with generator-level normalisation based on
+
+```text
+signal test generation      = 200,000 events
+background test generation  = 1,200,000 events
+```
+
+The (m_{\mathrm{event}}>120) GeV preselection gives approximately
+
+```text
+signal efficiency      = 0.9251
+background efficiency  = 0.3263
+```
+
+corresponding to expected pre-NN yields of approximately
+
+[
+S \approx 213,
+]
+
+and
+
+[
+B \approx 1.99\times10^8
+]
+
+for (10~\mathrm{ab}^{-1}).
+
+This illustrates an important result of the study:
+
+> A high ROC AUC does not by itself imply experimental sensitivity when the physical background cross section exceeds the signal by many orders of magnitude.
+
+---
+
+## Example NN operating point
+
+With statistical uncertainty only, the selected operating point is approximately
+
+```text
+NN threshold             = 0.9419
+signal efficiency        = 0.3708
+background efficiency    = 0.0110
+```
+
+giving expected yields
+
+[
+S \approx 78.9,
+\qquad
+B \approx 2.18\times10^6,
+]
+
+and
+
+[
+Z_A \approx 0.053.
+]
+
+The significance decreases further once background systematic uncertainties are included.
+
+The principal limitation of the analysis is therefore the extreme physical rate difference between (H\rightarrow gg) and continuum (q\bar q) production rather than insufficient classifier ROC performance.
+
+---
+
+# Repository structure
 
 ```text
 FCC-ee-Hgg/
+├── README.md
 ├── setup.sh
+├── config.py
+├── config/
+│
 ├── scripts/
 │   ├── data_processing/
 │   │   ├── add_hl_observables.py
-│   │   └── enrich_analysis_shards.py
+│   │   ├── enrich_analysis_shards.py
+│   │   └── ...
+│   │
 │   ├── data_checks/
-│   │   └── validate_enriched_shards.py
-│   └── ML/
-│       └── train_bdt_22_variables.py
-├── cache/                         # generated data; not version-controlled
-└── outputs/
-    ├── ml/bdt_22_variables/
-    └── plots/
+│   │   └── ...
+│   │
+│   ├── plotting/
+│   │   └── ...
+│   │
+│   ├── ML/
+│   │   ├── train_bdt_22_variables.py
+│   │   ├── train_event_nn_architecture_sweep.py
+│   │   ├── run_nn_multiseed_sweep.sh
+│   │   ├── summarise_nn_multiseed.py
+│   │   ├── run_nn_feature_ablation.py
+│   │   ├── plot_nn_feature_dependence.py
+│   │   ├── train_final_wide_all_data.py
+│   │   ├── evaluate_bdt_full_test.py
+│   │   ├── compare_final_models.py
+│   │   ├── scan_nn_luminosity_significance.py
+│   │   ├── single_jet_particlenet.py
+│   │   └── ...
+│   │
+│   └── pre_work/
+│
+├── outputs/
+│   ├── ml/
+│   │   ├── bdt_22_variables/
+│   │   ├── bdt_22_variables_test/
+│   │   ├── nn_architecture_sweep_100k/
+│   │   ├── nn_multiseed_sweep/
+│   │   ├── nn_feature_dependence/
+│   │   ├── final_feature_dependence/
+│   │   ├── nn_final_wide_all_data/
+│   │   ├── nn_final_wide_all_data_test/
+│   │   └── final_model_comparison/
+│   └── plots/
+│
+├── results/
+│   ├── particlenet_optimised_10000/
+│   └── single_jet_particlenet_v3_10000/
+│
+└── archive/
 ```
 
-Older exploratory scripts for cache construction, cut studies, jet distributions and ECF scans are retained under `scripts/`.
+`archive/` contains superseded or exploratory analysis material retained for provenance.
 
-## Environment
+---
 
-On CERN LXPLUS, initialise the project environment from the repository root:
+# Environment
+
+On CERN LXPLUS, initialise the environment from the repository root with
 
 ```bash
 source setup.sh
 ```
 
-This loads the CERN LCG 108 environment and sets `PYTHONPATH` to the repository root. The analysis relies on Python, `uproot`, `awkward`, NumPy, PyArrow, Matplotlib, scikit-learn and joblib.
-
-## Data pipeline
-
-The input samples are EDM4hep/Delphes ROOT files on CERN EOS. The cache builder reads only the branches required for the analysis in batches, reconstructs the jet-based event four-vector, and stores selected events as Parquet shards.
-
-Each retained event has:
-
-1. `m_event > 120 GeV`;
-2. at least two reconstructed jets;
-3. two jets ordered by energy (leading, then subleading);
-4. constituent four-vectors resolved through the `Jet#2` relation; and
-5. a fixed signal (`1`) or background (`0`) label.
-
-The analysis dataset is organised as:
+The project primarily uses:
 
 ```text
-cache/analysis_dataset/
-├── signal/{train,validation,test}/*.parquet
-└── background/{train,validation,test}/*.parquet
+Python
+NumPy
+Awkward Array
+Uproot
+PyArrow
+Pandas
+Matplotlib
+scikit-learn
+PyTorch
+PyTorch Geometric
 ```
 
-Parquet files are read in batches rather than loaded eagerly. This is necessary for the full cache, which exceeds typical interactive memory limits.
+CUDA acceleration is used for the neural-network and ParticleNet studies where available.
 
-### Add high-level observables
+---
 
-The enrichment stage calculates the selected observables in small event chunks and atomically replaces a shard only after it has been reloaded and validated:
+# Typical workflow
+
+## 1. Build the analysis dataset
+
+The ROOT input data are converted into Parquet shards using the scripts under
+
+```text
+scripts/data_processing/
+```
+
+The processing stage resolves reconstructed jet constituents and applies the event-level selection.
+
+---
+
+## 2. Add jet-substructure observables
+
+For example:
 
 ```bash
 python -m scripts.data_processing.enrich_analysis_shards \
-  --all \
-  --dataset-root cache/analysis_dataset/signal/train \
-  --chunk-size 500
+    --all \
+    --dataset-root cache/analysis_dataset/signal/train \
+    --chunk-size 500
 ```
 
-Repeat for each sample and split. To process one shard, use `--file path/to/shard.parquet` instead of `--all`.
+The process should be repeated for the required signal/background splits.
 
-Validate all enriched shards and the train/validation/test source-file separation with:
+---
 
-```bash
-python -m scripts.data_checks.validate_enriched_shards
+## 3. Validate processed data
+
+Run the validation utilities in
+
+```text
+scripts/data_checks/
 ```
 
-`C₂` and `D₂` are undefined for one-constituent jets because `e₂ = e₃ = 0`; these entries are stored as `NaN` and are handled by the BDT.
+before training models.
 
-## Observables
+---
 
-The BDT uses 22 scalar inputs: two event-level quantities plus ten values for each selected jet.
-
-| Category | Variables |
-| --- | --- |
-| Event | `event_invariant_mass`, `n_jets_original` |
-| Per selected jet | energy, mass, constituent multiplicity, `p_T`, `p`, polar angle `θ` |
-| Jet substructure | `e₂(β=0.2)`, `e₃(β=0.2)`, `C₂=e₃/e₂²`, `D₂=e₃/e₂³` |
-
-For constituents with energy fractions `z_i`, the ECFs use the energy-normalised angular distance `θ_ij`:
-
-`e₂^(β) = Σ_{i<j} z_i z_j θ_ij^β`
-
-`e₃^(β) = Σ_{i<j<k} z_i z_j z_k (θ_ij θ_ik θ_jk)^β`
-
-Earlier single-observable ECF3 scans gave AUCs of 0.8328 (`β=0.1`), 0.8255 (`0.2`), 0.7975 (`0.5`), 0.7587 (`1.0`) and 0.7124 (`2.0`). The current enriched dataset therefore uses `β=0.2`, which provides strong discrimination in combination with the other observables.
-
-## Train the BDT
-
-Run the reference configuration from the repository root:
+## 4. Train baseline BDT
 
 ```bash
 python -m scripts.ML.train_bdt_22_variables \
-  --dataset-root cache/analysis_dataset \
-  --max-events-per-class 100000 \
-  --importance-events 20000
+    --dataset-root cache/analysis_dataset \
+    --max-events-per-class 100000 \
+    --importance-events 20000
 ```
 
-The script:
+---
 
-- reads only training and validation shards, never the test split;
-- derives leading/subleading scalar columns from the two-jet arrays;
-- uses `HistGradientBoostingClassifier` with a maximum of 300 iterations, 31 leaves per tree, minimum leaf size 100, L2 regularisation of 1.0 and ROC-AUC early stopping;
-- applies class-balanced training weights; and
-- writes `bdt_model.joblib`, `metrics.json`, `validation_roc.png` and `permutation_importance.png`.
+## 5. Neural-network architecture study
 
-Use `--max-events-per-class 0` only when sufficient memory and runtime are available to load all events in each split.
+```bash
+python -m scripts.ML.train_event_nn_architecture_sweep
+```
 
-## Reproducibility and data handling
+The selected network architecture was subsequently tested across multiple random seeds before being frozen.
 
-- Generated caches and large analysis outputs are excluded from Git.
-- Dataset splits are defined at the source-file level to prevent event leakage across train, validation and test samples.
-- The enrichment and validation steps explicitly check event counts, two-jet shapes, finite physical quantities and the expected `C₂`/`D₂` `NaN` pattern.
-- The supplied model result is a validation result, not a final unbiased performance estimate. Evaluate the reserved test split once model selection and threshold optimisation are finalised.
+---
 
-## References
+## 6. Final neural-network refit
 
-1. D. d’Enterria, A. Poldaru and G. Wojcik, *Measuring the electron Yukawa coupling via resonant s-channel Higgs production at FCC-ee*, Eur. Phys. J. Plus **137**, 201 (2022), [arXiv:2107.02686](https://arxiv.org/abs/2107.02686).
-2. A. J. Larkoski, I. Moult and D. Neill, *Power Counting to Better Jet Observables*, JHEP **12** (2014) 009, [arXiv:1409.6298](https://arxiv.org/abs/1409.6298).  
+```bash
+python -m scripts.ML.train_final_wide_all_data
+```
 
-## Author
+This trains the frozen
 
-Hugo Leigh-Watts  
-MSc Nuclear and Particle Physics, University of Edinburgh
+```text
+[256, 128, 64]
+```
+
+network on the combined training and validation datasets.
+
+---
+
+## 7. Final test evaluation
+
+The held-out test split is evaluated separately.
+
+Results are written to
+
+```text
+outputs/ml/nn_final_wide_all_data_test/
+```
+
+including:
+
+```text
+test_metrics.json
+test_predictions.csv
+test_roc.png
+test_score_distribution.png
+threshold_scan.csv
+best_operating_points.csv
+weighted_significance_vs_threshold.png
+```
+
+---
+
+## 8. Compare models
+
+```bash
+python -m scripts.ML.compare_final_models
+```
+
+Outputs include:
+
+```text
+model_comparison_metrics.csv
+model_comparison_operating_points.csv
+model_comparison_roc.png
+model_comparison_roc_low_fpr.png
+```
+
+---
+
+# Interpretation
+
+The study separates two distinct questions.
+
+### Machine-learning question
+
+Can reconstructed event and jet-substructure information distinguish (H\rightarrow gg) from (q\bar q)?
+
+**Yes.**
+
+The final event-level network reaches
+
+[
+\mathrm{AUC}=0.9428
+]
+
+and improves background rejection relative to the BDT.
+
+### Physics-sensitivity question
+
+Is this rejection sufficient to isolate direct (H\rightarrow gg) production at realistic FCC-ee cross sections?
+
+**Not with the current analysis.**
+
+The background production rate is so large that even strong machine-learning discrimination leaves a background yield many orders of magnitude larger than the signal.
+
+The study therefore illustrates the distinction between classifier performance and achievable collider sensitivity.
+
+---
+
+# Reproducibility notes
+
+* Train, validation and test samples are separated at source-file level.
+* The test sample is excluded from model training.
+* Architecture selection was performed using validation data.
+* The final network architecture and hyperparameters were frozen before the final refit.
+* The final refit combines training and validation data.
+* Because the test set had been inspected during earlier development, the final procedure should be described as a **frozen final analysis/refit**, rather than as a completely untouched blind test.
+* Physics significance calculations use cross-section and luminosity weights rather than class-balanced ML weights.
+* Very-low-background operating points are restricted by the finite Monte Carlo statistics available in the background test sample.
+
+---
+
+# References
+
+1. D. d'Enterria, A. Poldaru and G. Wojcik,
+   *Measuring the electron Yukawa coupling via resonant s-channel Higgs production at FCC-ee*,
+   Eur. Phys. J. Plus **137**, 201 (2022), arXiv:2107.02686.
+
+2. I. Moult, L. Necib and J. Thaler,
+   *New angles on energy correlation functions*,
+   JHEP **12** (2016) 153, arXiv:1609.07483.
+
+3. H. Qu and L. Gouskos,
+   *ParticleNet: Jet Tagging via Particle Clouds*,
+   Phys. Rev. D **101**, 056019 (2020), arXiv:1902.08570.
+
+---
+
+# Author
+
+**Hugo Leigh-Watts**
+
+MSc Nuclear and Particle Physics
+University of Edinburgh
+
