@@ -5,3 +5,7 @@ cache/
 *.root
 
 .ipynb_checkpoints/
+
+# Large generated analysis outputs
+archive/ML/outputs/event_nn_vectorised_fixed/tail_study/tail_scan_*.csv
+outputs/ml/nn_wide_plus_transformer_embeddings_250k/
