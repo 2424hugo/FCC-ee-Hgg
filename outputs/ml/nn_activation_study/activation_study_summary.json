@@ -1,0 +1,30 @@
+{
+  "architecture": {
+    "input_features": 22,
+    "hidden_dims": [
+      256,
+      128,
+      64
+    ],
+    "dropout": 0.15,
+    "batch_norm": true
+  },
+  "activations": [
+    "relu",
+    "gelu",
+    "silu"
+  ],
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "best_by_mean_auc": {
+    "activation": "gelu",
+    "mean_auc": 0.9392970237800002,
+    "std_auc": 5.669875176516508e-05
+  },
+  "test_split_used": false
+}

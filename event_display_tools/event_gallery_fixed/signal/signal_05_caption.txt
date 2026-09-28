@@ -1,0 +1,16 @@
+FCC-ee simulation · H → gg signal · √s = 125 GeV
+Entry 82231   |   reconstructed mass 126.51 GeV   |   2 jets
+96/96 particles shown   |   E ≥ 0 GeV   |   uniform Bz = 2 T (stored value)
+
+Orthographic x-y projection viewed from +z; +x right and +y up.
+Positive charge: yellow; negative: green; neutral directions: blue dashed.
+All valid jet axes shown in energy order: cyan, orange, purple, then further colours.
+Jet arrow length encodes geometric extent, not energy. No hit/cluster markers shown.
+47 charged trajectories from saved track states; 0 from momentum approximations.
+Schematic detector; no additional fit, energy loss or scattering. Neutral lines are directions.
+Jet ObjectID links verified against each stored jet four-vector.
+11 paths capped at 1 turn(s) or 12 m; circles mark capped endpoints.
+No stored cluster/hit positions plotted.
+
+Source: /eos/experiment/fcc/ee/generation/DelphesEvents/winter2023/IDEA/wzp6_ee_Hgg_ecm125/events_194731328.root
+ROOT file UUID: 47a3ed58-312b-11ee-ae22-79a3b8bcbeef

@@ -1,0 +1,53 @@
+{
+  "model": "partial_finetune_particle_transformer_plus_event_nn",
+  "baseline_frozen_embedding_test_auc": 0.9619502360556726,
+  "best_epoch": 12,
+  "validation_loss": 0.24767166159629822,
+  "validation_auc": 0.9614147930000001,
+  "validation_average_precision": 0.9567019496558051,
+  "test_loss": 0.25226125394432525,
+  "test_auc": 0.9619668448589013,
+  "test_average_precision": 0.9176303509541506,
+  "test_operating_points": [
+    {
+      "target_signal_efficiency": 0.5,
+      "signal_efficiency": 0.4991271072387943,
+      "background_efficiency": 0.012325279080992867,
+      "background_rejection": 81.13406547865728,
+      "threshold": 0.94140625
+    },
+    {
+      "target_signal_efficiency": 0.7,
+      "signal_efficiency": 0.7001897122967079,
+      "background_efficiency": 0.03309130564700053,
+      "background_rejection": 30.219418075171724,
+      "threshold": 0.8603515625
+    },
+    {
+      "target_signal_efficiency": 0.8,
+      "signal_efficiency": 0.7999805423285428,
+      "background_efficiency": 0.055908140149609376,
+      "background_rejection": 17.886483029555524,
+      "threshold": 0.76318359375
+    },
+    {
+      "target_signal_efficiency": 0.9,
+      "signal_efficiency": 0.9000794521584503,
+      "background_efficiency": 0.10703531833493805,
+      "background_rejection": 9.342710570269626,
+      "threshold": 0.54736328125
+    }
+  ],
+  "train_events_signal": 100000,
+  "train_events_background": 100000,
+  "validation_events_signal": 50000,
+  "validation_events_background": 50000,
+  "test_events_signal": 185017,
+  "test_events_background": 391553,
+  "transformer_trainable_parameters": 215040,
+  "event_trainable_parameters": 113537,
+  "training_seconds": 11274.656510293018,
+  "initial_validation_auc": 0.961324859,
+  "event_learning_rate": 0.0002,
+  "transformer_learning_rate": 1e-05
+}

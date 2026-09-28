@@ -1,0 +1,76 @@
+{
+  "arguments": {
+    "train_parquet": [
+      "cache/analysis_dataset/signal/train/*.parquet",
+      "cache/analysis_dataset/background/train/*.parquet"
+    ],
+    "val_parquet": [
+      "cache/analysis_dataset/signal/validation/*.parquet",
+      "cache/analysis_dataset/background/validation/*.parquet"
+    ],
+    "test_parquet": [
+      "cache/analysis_dataset/signal/test/*.parquet",
+      "cache/analysis_dataset/background/test/*.parquet"
+    ],
+    "label_field": "label",
+    "label_source": "event",
+    "label_format": "binary",
+    "quark_pdgs": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "unknown_label_policy": "error",
+    "output_dir": "results/single_jet_particle_transformer",
+    "epochs": 30,
+    "batch_size": 128,
+    "learning_rate": 0.0002,
+    "weight_decay": 0.0001,
+    "patience": 7,
+    "seed": 12345,
+    "num_workers": 2,
+    "max_constituents": 100,
+    "shard_cache_size": 2,
+    "prefetch_factor": 2,
+    "pin_memory": null,
+    "persistent_workers": true,
+    "amp": true,
+    "use_particle_type": false,
+    "particle_types": null,
+    "device": "auto",
+    "limit_jets": 50000,
+    "d_model": 128,
+    "num_heads": 8,
+    "num_layers": 4,
+    "ffn_dim": 512,
+    "dropout": 0.1,
+    "type_embedding_dim": 8,
+    "pair_hidden_dim": 32,
+    "disable_pairwise_bias": false
+  },
+  "device": "cuda",
+  "amp_enabled": true,
+  "pin_memory": true,
+  "class_convention": {
+    "0": "quark",
+    "1": "gluon"
+  },
+  "particle_type_vocabulary": [],
+  "trainable_parameters": 812631,
+  "positive_class_weight": 1.0,
+  "architecture": {
+    "name": "physics_aware_particle_transformer",
+    "continuous_features": 7,
+    "pair_features": [
+      "log_deltaR",
+      "log_kT",
+      "log_z",
+      "log_m2"
+    ],
+    "pairwise_bias": true,
+    "pooling": "CLS token",
+    "positional_encoding": "none; jet geometry enters through features and pairwise bias"
+  }
+}

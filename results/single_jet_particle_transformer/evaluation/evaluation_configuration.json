@@ -1,0 +1,82 @@
+{
+  "checkpoint": "results/single_jet_particle_transformer/best_model.pt",
+  "checkpoint_epoch": 16,
+  "checkpoint_val_loss": 0.43579043496131903,
+  "device": "cuda",
+  "amp": true,
+  "batch_size": 128,
+  "num_workers": 2,
+  "test_parquet": [
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_026376758_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_037528275_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_071670659_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_078805811_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_095489332_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_098009158_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_135277635_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_139544303_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_144227556_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_147214970_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_177192974_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/background/test/events_181195758_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/signal/test/events_016449977_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/signal/test/events_016449977_part_0001.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/signal/test/events_180098453_part_0000.parquet",
+    "/eos/home-i02/h/hleighwa/FCC-ee-Hgg/cache/analysis_dataset/signal/test/events_180098453_part_0001.parquet"
+  ],
+  "test_indices_count": 50000,
+  "test_quark": 25000,
+  "test_gluon": 25000,
+  "training_arguments": {
+    "train_parquet": [
+      "cache/analysis_dataset/signal/train/*.parquet",
+      "cache/analysis_dataset/background/train/*.parquet"
+    ],
+    "val_parquet": [
+      "cache/analysis_dataset/signal/validation/*.parquet",
+      "cache/analysis_dataset/background/validation/*.parquet"
+    ],
+    "test_parquet": [
+      "cache/analysis_dataset/signal/test/*.parquet",
+      "cache/analysis_dataset/background/test/*.parquet"
+    ],
+    "label_field": "label",
+    "label_source": "event",
+    "label_format": "binary",
+    "quark_pdgs": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "unknown_label_policy": "error",
+    "output_dir": "results/single_jet_particle_transformer",
+    "epochs": 30,
+    "batch_size": 128,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.0001,
+    "patience": 7,
+    "seed": 12345,
+    "num_workers": 2,
+    "max_constituents": 100,
+    "shard_cache_size": 2,
+    "prefetch_factor": 2,
+    "pin_memory": null,
+    "persistent_workers": true,
+    "amp": true,
+    "use_particle_type": false,
+    "particle_types": null,
+    "device": "auto",
+    "limit_jets": 50000,
+    "d_model": 64,
+    "num_heads": 4,
+    "num_layers": 2,
+    "ffn_dim": 128,
+    "dropout": 0.1,
+    "type_embedding_dim": 8,
+    "pair_hidden_dim": 32,
+    "disable_pairwise_bias": false
+  },
+  "particle_type_vocabulary": []
+}

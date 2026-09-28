@@ -1,0 +1,23 @@
+{
+  "class_convention": {
+    "0": "quark",
+    "1": "gluon"
+  },
+  "test_jets": 10000,
+  "test_accuracy": 0.7819,
+  "test_roc_auc_gluon": 0.8609674,
+  "confusion_matrix_rows_truth_columns_prediction": [
+    [
+      3905,
+      1095
+    ],
+    [
+      1086,
+      3914
+    ]
+  ],
+  "quark_mistag_at_gluon_eff_0.5": 0.0752,
+  "quark_mistag_at_gluon_eff_0.7": 0.1564,
+  "quark_mistag_at_gluon_eff_0.8": 0.2328,
+  "quark_mistag_at_gluon_eff_0.9": 0.3604
+}
